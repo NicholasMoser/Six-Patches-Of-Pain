@@ -91,8 +91,10 @@ def get_gnt4_iso():
     # Last resort, query the user for its location
     while True:
         print('\nThis updater requires a vanilla GNT4 ISO in order to auto-update.')
-        print('Please enter the file path to your local copy of vanilla GNT4')
-        print('or enter a link to a download for vanilla GNT4 to download it.')
+        print('Please do one of the following:')
+        print('  1: Enter the file path to your local copy of vanilla GNT4 ISO')
+        print('  2: Move a vanilla GNT4 ISO to the same folder as this program and restart')
+        print('  3: Enter a link to a download for vanilla GNT4\n')
         user_input = input('Input: ')
         # Local file
         if os.path.exists(user_input) and is_gnt4(user_input):
@@ -146,7 +148,7 @@ def patch_gnt4(gnt4_iso, scon4_iso):
     if (output):
         print(output)
     if os.path.exists(scon4_iso) and os.stat(scon4_iso).st_size > 0:
-        print('Patching complete.')
+        print('Patching complete. Saved to {}'.format(scon4_iso))
     else:
         fail('Failed to patch GNT4')
 
