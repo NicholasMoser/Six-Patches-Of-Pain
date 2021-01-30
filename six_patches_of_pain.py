@@ -8,6 +8,7 @@ import sys
 import json
 import zlib
 import subprocess
+import platform
 from shutil import which
 import requests
 from tqdm import tqdm
@@ -18,6 +19,7 @@ DATA = 'data'
 # xdelta binaries
 XDELTA3_EXE = 'data/xdelta3.exe'
 XDELTA3 = 'xdelta3'
+XDELTA = 'xdelta'
 
 # current version to see if a newer version exists
 CURRENT_VERSION = 'data/current_version'
@@ -37,8 +39,8 @@ GNT4_ISO_PATH = 'data/gnt4_iso_path'
 # default name of the GNT4 iso if the user downloads it
 DEFAULT_GNT4_ISO = 'data/GNT4.iso'
 
-# if this program is running on Windows
-IS_WINDOWS = os.name == 'nt'
+# Linux, Darwin, or Windows
+PLATFORM = platform.system()
 
 def main():
     """ Run the application. """
@@ -60,13 +62,16 @@ def verify_integrity():
     if not os.path.exists(DATA):
         os.makedirs(DATA)
     # Check that xdelta3 exists
-    if IS_WINDOWS:
+    if PLATFORM == 'Windows':
         if not os.path.exists(XDELTA3_EXE):
             msg = 'Unable to find xdelta3.exe in the data folder.\n'
             msg += 'Please verify that there is a folder named data with a file named xdelta3.exe\n'
             msg += 'If you do not see it, redownload Six Patches of Pain.\n'
             msg += 'It may also be an issue with your antivirus.'
             fail(msg)
+    elif PLATFORM == 'Darwin':
+        if which(XDELTA) is None:
+            fail('Unable to find xdelta, please install xdelta.')
     elif which(XDELTA3) is None:
         fail('Unable to find xdelta3, please install xdelta3.')
     # If git repository is not set, set it to the default release repository
@@ -153,8 +158,10 @@ def download_new_version():
 def patch_gnt4(gnt4_iso, scon4_iso):
     """ Patches the given GNT4 ISO to the output SCON4 ISO path using the downloaded patch. """
     print('Beginning to patch GNT4...')
-    if IS_WINDOWS:
+    if PLATFORM == 'Windows':
         xdelta = XDELTA3_EXE
+    elif PLATFORM == 'Darwin':
+        xdelta = XDELTA
     else:
         xdelta = XDELTA3
     args = [xdelta, '-f', '-d', '-s', gnt4_iso, PATCH_FILE, scon4_iso]
