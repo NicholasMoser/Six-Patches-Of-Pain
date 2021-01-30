@@ -62,7 +62,11 @@ def verify_integrity():
     # Check that xdelta3 exists
     if IS_WINDOWS:
         if not os.path.exists(XDELTA3_EXE):
-            fail('Unable to find xdelta3.exe in the data folder. Please reinstall the autoupdater.')
+            msg = 'Unable to find xdelta3.exe in the data folder.\n'
+            msg += 'Please verify that there is a folder named data with a file named xdelta3.exe\n'
+            msg += 'If you do not see it, redownload Six Patches of Pain.\n'
+            msg += 'It may also be an issue with your antivirus.'
+            fail(msg)
     elif which(XDELTA3) is None:
         fail('Unable to find xdelta3, please install xdelta3.')
     # If git repository is not set, set it to the default release repository
@@ -98,18 +102,21 @@ def get_gnt4_iso():
         print('  2: Move a vanilla GNT4 ISO to the same folder as this program and restart')
         print('  3: Enter a link to a download for vanilla GNT4\n')
         user_input = input('Input: ')
-        # Local file
-        if os.path.exists(user_input) and is_gnt4(user_input):
-            set_gnt4_iso_path(user_input)
-            return user_input
-        # Download from interwebs
-        file_path = try_to_download_gnt4(user_input)
-        if os.path.exists(file_path):
-            if is_gnt4(file_path):
-                set_gnt4_iso_path(file_path)
-                return file_path
-            print('Downloaded file was not GNT4.')
-            os.remove(file_path)
+        if os.path.exists(user_input):
+            # Local file
+            if is_gnt4(user_input):
+                set_gnt4_iso_path(user_input)
+                return user_input
+            print('Error: {} is not a clean vanilla GNT4 ISO'.format(file_path))
+        else:
+            # Download from interwebs
+            file_path = try_to_download_gnt4(user_input)
+            if os.path.exists(file_path):
+                if is_gnt4(file_path):
+                    set_gnt4_iso_path(file_path)
+                    return file_path
+                print('Downloaded file was not GNT4.')
+                os.remove(file_path)
     return None
 
 def download_new_version():
@@ -146,8 +153,9 @@ def download_new_version():
 def patch_gnt4(gnt4_iso, scon4_iso):
     """ Patches the given GNT4 ISO to the output SCON4 ISO path using the downloaded patch. """
     print('Beginning to patch GNT4...')
-    output = subprocess.check_output([XDELTA3_EXE, '-f', '-d', '-s', gnt4_iso, PATCH_FILE, scon4_iso])
-    if (output):
+    args = [XDELTA3_EXE, '-f', '-d', '-s', gnt4_iso, PATCH_FILE, scon4_iso]
+    output = subprocess.check_output(args)
+    if output:
         print(output)
     if os.path.exists(scon4_iso) and os.stat(scon4_iso).st_size > 0:
         print('Patching complete. Saved to {}'.format(scon4_iso))
