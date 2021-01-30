@@ -1,5 +1,6 @@
 """
-Testing
+Six Patches of Pain is an auto-updater for the Super Clash of Ninja 4 mod.
+For more information see https://github.com/NicholasMoser/Six_Patches_Of_Pain
 """
 
 import os
@@ -41,6 +42,7 @@ IS_WINDOWS = os.name == 'nt'
 
 def main():
     """ Run the application. """
+    print('Starting Six Patches of Pain...')
     verify_integrity()
     gnt4_iso = get_gnt4_iso()
     if gnt4_iso is None:

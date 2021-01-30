@@ -1,6 +1,6 @@
 # Six Patches of Pain
 
-Six Patches of Pain is an auto-updater for the **Super Clash of Ninja 4** mod.
+Six Patches of Pain is an auto-updater for the **Super Clash of Ninja 4** mod. The name comes from the [Six Paths of Pain](https://naruto.fandom.com/wiki/Six_Paths_of_Pain).
 
 ## Legal
 
