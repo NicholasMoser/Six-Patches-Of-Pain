@@ -107,7 +107,7 @@ def get_gnt4_iso():
             if is_gnt4(user_input):
                 set_gnt4_iso_path(user_input)
                 return user_input
-            print('Error: {} is not a clean vanilla GNT4 ISO'.format(file_path))
+            print('\nERROR: {} is not a clean vanilla GNT4 ISO'.format(user_input))
         else:
             # Download from interwebs
             file_path = try_to_download_gnt4(user_input)
@@ -153,7 +153,11 @@ def download_new_version():
 def patch_gnt4(gnt4_iso, scon4_iso):
     """ Patches the given GNT4 ISO to the output SCON4 ISO path using the downloaded patch. """
     print('Beginning to patch GNT4...')
-    args = [XDELTA3_EXE, '-f', '-d', '-s', gnt4_iso, PATCH_FILE, scon4_iso]
+    if IS_WINDOWS:
+        xdelta = XDELTA3_EXE
+    else:
+        xdelta = XDELTA3
+    args = [xdelta, '-f', '-d', '-s', gnt4_iso, PATCH_FILE, scon4_iso]
     output = subprocess.check_output(args)
     if output:
         print(output)
