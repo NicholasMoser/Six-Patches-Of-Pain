@@ -2,6 +2,13 @@
 
 Six Patches of Pain is an auto-updater for the **Super Clash of Ninja 4** mod. The name comes from the [Six Paths of Pain](https://naruto.fandom.com/wiki/Six_Paths_of_Pain).
 
+- [How to Use](#how-to-use)
+  - [Windows](#windows)
+  - [Mac](#mac)
+  - [Linux](#linux)
+- [Common Questions](#common-questions)
+- [Legal](#legal)
+
 ## How to Use
 
 ### Windows
@@ -52,10 +59,16 @@ Then run Six Patches of Pain like so:
 python3 six_patches_of_pain.py
 ```
 
+## Common Questions
+
+### It says I'm already on the latest version but I want to reinstall it
+
+Open the `data` folder, delete the file named `current_version`, and restart Six Patches of Pain.
+
 ## Legal
 
 This software is licensed under the GNU General Public License v3.0.
 
 The bundled xdelta for Windows is licensed under Apache Public License version 2.0.
 
-The icon for the application was created and is owned by [thedemonknight](https://www.deviantart.com/thedemonknight/art/Naruto-dojutsu-icon-pack-270461865)
+The icon for the application is owned by [thedemonknight](https://www.deviantart.com/thedemonknight/art/Naruto-dojutsu-icon-pack-270461865)
