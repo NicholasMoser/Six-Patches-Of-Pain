@@ -92,6 +92,7 @@ def get_gnt4_iso():
         dragged_path = sys.argv[1]
         if (os.path.exists(dragged_path)):
             if (is_gnt4(dragged_path)):
+                set_gnt4_iso_path(dragged_path)
                 return dragged_path
             else:
                 print('Provided file is not a vanilla GNT4 ISO: ' + dragged_path)
@@ -114,7 +115,7 @@ def get_gnt4_iso():
                 return file_path
     # Last resort, query the user for its location
     while True:
-        print('\nThis updater requires a vanilla GNT4 ISO in order to auto-update.')
+        print('This updater requires a vanilla GNT4 ISO in order to auto-update.')
         print('Please do one of the following:')
         print('  1: Exit this application and drag your vanilla GNT4 ISO onto the executable')
         print('  2: Enter the file path to your local copy of vanilla GNT4 ISO')
@@ -171,7 +172,7 @@ def download_new_version():
 
 def patch_gnt4(gnt4_iso, scon4_iso):
     """ Patches the given GNT4 ISO to the output SCON4 ISO path using the downloaded patch. """
-    print('Beginning to patch GNT4...')
+    print('Patching GNT4...')
     if PLATFORM == 'Windows':
         xdelta = XDELTA3_EXE
     elif PLATFORM == 'Darwin':
