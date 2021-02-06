@@ -44,7 +44,7 @@ PLATFORM = platform.system()
 
 def main():
     """ Run the application. """
-    print('Starting Six Patches of Pain...')
+    print('Starting Six Patches of Pain...\n')
     verify_integrity()
     gnt4_iso = get_gnt4_iso()
     if gnt4_iso is None:
@@ -58,6 +58,9 @@ def main():
 
 def verify_integrity():
     """ Verify the integrity of the auto-updater and required files. """
+    # Make sure that the current working directory was not changed
+    # This can occur when dragging and dropping an ISO in Windows
+    os.chdir(os.path.dirname(sys.argv[0]))
     # Create data directory if it doesn't already exist
     if not os.path.exists(DATA):
         os.makedirs(DATA)
@@ -84,14 +87,24 @@ def verify_integrity():
 
 def get_gnt4_iso():
     """ Retrieves the vanilla GNT4 iso to patch against. """
-    # First look for the iso in GNT4_ISO_PATH
+    # First, check if it was drag and dropped onto the executable or provided as an arg
+    if (len(sys.argv) > 1):
+        dragged_path = sys.argv[1]
+        if (os.path.exists(dragged_path)):
+            if (is_gnt4(dragged_path)):
+                return dragged_path
+            else:
+                print('Provided file is not a vanilla GNT4 ISO: ' + dragged_path)
+        else:
+            print('Provided path is not valid: ' + dragged_path)
+    # Second, look for the iso in GNT4_ISO_PATH
     if os.path.exists(GNT4_ISO_PATH):
         with open(GNT4_ISO_PATH, 'r') as gnt4_iso_path_file:
             iso_path = gnt4_iso_path_file.read()
             if os.path.exists(iso_path):
                 print('Found vanilla GNT4 at {}'.format(iso_path))
                 return iso_path
-    # Then look for it recursively in the current directory
+    # Then, look for it recursively in the current directory
     for root, _, files in os.walk('.'):
         for curr_file in files:
             file_path = os.path.abspath(os.path.join(root, curr_file))
@@ -103,9 +116,10 @@ def get_gnt4_iso():
     while True:
         print('\nThis updater requires a vanilla GNT4 ISO in order to auto-update.')
         print('Please do one of the following:')
-        print('  1: Enter the file path to your local copy of vanilla GNT4 ISO')
-        print('  2: Move a vanilla GNT4 ISO to the same folder as this program and restart')
-        print('  3: Enter a link to a download for vanilla GNT4\n')
+        print('  1: Exit this application and drag your vanilla GNT4 ISO onto the executable')
+        print('  2: Enter the file path to your local copy of vanilla GNT4 ISO')
+        print('  3: Move a vanilla GNT4 ISO to the same folder as this program and restart')
+        print('  4: Enter a link to a download for vanilla GNT4\n')
         user_input = input('Input: ')
         if os.path.exists(user_input):
             # Local file
@@ -120,7 +134,7 @@ def get_gnt4_iso():
                 if is_gnt4(file_path):
                     set_gnt4_iso_path(file_path)
                     return file_path
-                print('Downloaded file was not GNT4.')
+                print('\nERROR: Downloaded file was not a vanilla GNT4 ISO.')
                 os.remove(file_path)
     return None
 
@@ -169,7 +183,8 @@ def patch_gnt4(gnt4_iso, scon4_iso):
     if output:
         print(output)
     if os.path.exists(scon4_iso) and os.stat(scon4_iso).st_size > 0:
-        print('Patching complete. Saved to {}'.format(scon4_iso))
+        iso_full_path = os.path.abspath(scon4_iso)
+        print('Patching complete. Saved to {}'.format(iso_full_path))
     else:
         fail('Failed to patch GNT4')
 
