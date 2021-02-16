@@ -1,6 +1,8 @@
-pyinstaller --onefile --noconfirm --icon=rinnegan.ico six_patches_of_pain.py
-Move-Item -Force -Path dist/six_patches_of_pain.exe -Destination six_patches_of_pain.exe
-tar.exe -a -c -f dist/windows.zip six_patches_of_pain.exe data/xdelta3.exe
-Move-Item -Force -Path six_patches_of_pain.exe -Destination dist/six_patches_of_pain.exe
-tar.exe -a -c -f dist/mac.zip six_patches_of_pain.py
-tar.exe -a -c -f dist/linux.zip six_patches_of_pain.py
+$VERSION = "0.0.6"
+
+pyinstaller --noconfirm --icon=rinnegan.ico six_patches_of_pain.py
+tar.exe -acf "dist/Six-Patches-Of-Pain-$VERSION-Mac.zip" README.md six_patches_of_pain.py
+tar.exe -acf "dist/Six-Patches-Of-Pain-$VERSION-Linux.zip" README.md six_patches_of_pain.py
+New-Item -ItemType Directory -Force -Path dist/six_patches_of_pain/data
+Copy-Item -Force -Path data/xdelta3.exe -Destination dist/six_patches_of_pain/data/xdelta3.exe
+tar.exe -acf "dist/Six-Patches-Of-Pain-$VERSION-Windows.zip" -C dist six_patches_of_pain
