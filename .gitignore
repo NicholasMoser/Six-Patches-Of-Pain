@@ -5,6 +5,10 @@
 /data/gnt4_iso_path
 /data/patch
 
+# Golang related
+*.exe
+resource.syso
+
 # ---------------------------------------------------------------------
 # From https://github.com/github/gitignore/blob/master/Python.gitignore
 # ---------------------------------------------------------------------
