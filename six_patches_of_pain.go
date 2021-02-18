@@ -333,14 +333,18 @@ func setCurrentVersion(version string) {
 // Retrieves the CRC32 hash of a given file.
 func hashFile(filePath string) (string, error) {
 	var returnCRC32String string
+	fileSize := getFileSize(filePath)
 	file, err := os.Open(filePath)
 	if err != nil {
 		return returnCRC32String, err
 	}
 	defer file.Close()
+	bar := pb.Full.Start64(fileSize)
+	defer bar.Finish()
+	barReader := bar.NewProxyReader(file)
 	tablePolynomial := crc32.MakeTable(crc32.IEEE)
 	hash := crc32.New(tablePolynomial)
-	if _, err := io.Copy(hash, file); err != nil {
+	if _, err := io.Copy(hash, barReader); err != nil {
 		return returnCRC32String, err
 	}
 	hashInBytes := hash.Sum(nil)[:]
