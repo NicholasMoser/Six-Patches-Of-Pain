@@ -6,7 +6,8 @@
 /data/patch
 
 # Golang related
-*.exe
+/Six-Patches-Of-Pain.exe
+/Six-Patches-Of-Pain
 resource.syso
 
 # ---------------------------------------------------------------------

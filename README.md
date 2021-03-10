@@ -23,40 +23,24 @@ Download the latest Mac release zip and extract it. Then make sure you have the 
   - Download and install from https://brew.sh/
 - xdelta
   - To install run `brew install xdelta`
-- python3
-  - Download and install from https://www.python.org/downloads/mac-osx/
-- pip3
-  - Should be installed alongside python3
-- tqdm
-  - To install run `pip3 install tqdm`
-- requests
-  - To install run `pip3 install requests`
 
 Then run Six Patches of Pain like so:
 
 ```bash
-python3 six_patches_of_pain.py
+./six_patches_of_pain
 ```
 
 ### Linux
 
 Download the latest Linux release zip and extract it. Then make sure you have the following installed:
 
-- python3
-  - To install run `sudo apt-get install python3`
-- pip3
-  - To install run `sudo apt-get install python3-pip`
-- tqdm
-  - To install run `pip3 install tqdm`
-- requests
-  - To install run `pip3 install requests`
 - xdelta3
   - To install run `sudo apt-get install xdelta3`
 
 Then run Six Patches of Pain like so:
 
 ```bash
-python3 six_patches_of_pain.py
+./six_patches_of_pain
 ```
 
 ## Common Questions
@@ -64,6 +48,38 @@ python3 six_patches_of_pain.py
 ### It says I'm already on the latest version but I want to reinstall it
 
 Open the `data` folder, delete the file named `current_version`, and restart Six Patches of Pain.
+
+## Building
+
+To build the code, first make sure you have [go 1.16+](https://golang.org/) installed.
+
+Then install `pb` and `goversioninfo` by running:
+
+```bash
+go get github.com/cheggaaa/pb/v3
+go get github.com/josephspurrier/goversioninfo/cmd/goversioninfo
+```
+
+Finally, build the code with:
+
+```bash
+go generate
+go build
+```
+
+Different build environments can be targeted by using the `GOOS` env entry.
+
+### Powershell Example
+
+```powershell
+$Env:GOOS = "windows"; $Env:GOARCH = "amd64"
+go generate
+go build
+$Env:GOOS = "linux"; $Env:GOARCH = "amd64"
+go build
+$Env:GOOS = "darwin"; $Env:GOARCH = "amd64"
+go build
+```
 
 ## Legal
 
