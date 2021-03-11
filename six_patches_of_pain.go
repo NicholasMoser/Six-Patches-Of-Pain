@@ -60,7 +60,7 @@ var LinuxExecutableName = "Six-Patches-Of-Pain"
 var ExecutableName string
 
 func main() {
-	version := "0.0.7"
+	version := "1.0.0"
 	fmt.Printf("Starting Six Patches of Pain %s....\n", version)
 	fmt.Println()
 	verifyIntegrity()
@@ -95,8 +95,11 @@ func verifyIntegrity() {
 			}
 			if !exists(Xdelta3Exe) {
 				fmt.Println("Unable to find xdelta3.exe in the data folder.")
+				fmt.Println("Please make sure you extracted the entire zip file, not just Six-Patches-Of-Pain.exe")
+				fmt.Println()
+				fmt.Println("After following the above instructions, if you still encounter issues:")
 				fmt.Println("Please verify that there is a folder named data with a file named xdelta3.exe")
-				fmt.Println("If you do not see it, redownload Six Patches of Pain.")
+				fmt.Println("If you do not see it, redownload and extract Six Patches of Pain.")
 				fmt.Println("If you still don't see xdelta3.exe it may be an issue with your antivirus.")
 				fail()
 			}
@@ -232,7 +235,9 @@ func downloadNewVersion() string {
 	if exists(CurrentVersion) {
 		currentVersion := readFile(CurrentVersion)
 		if currentVersion == latestVersion {
-			fmt.Println("Already on latest version: " + latestVersion)
+			fmt.Println("Already on latest SCON4 version: " + latestVersion)
+			fmt.Println("If you wish to re-download the latest version,")
+			fmt.Println("please delete the file named current_version in the data folder.")
 			fail()
 		}
 	}
