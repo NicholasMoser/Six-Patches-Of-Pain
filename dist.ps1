@@ -1,4 +1,4 @@
-$VERSION = "1.0.0"
+$VERSION = "1.0.1"
 
 # Recreate dist directory
 Remove-Item -Force -Recurse -Path dist -ErrorAction Ignore
@@ -7,7 +7,7 @@ New-Item -ItemType Directory -Force -Path dist
 # Generate Windows binary
 $Env:GOOS = "windows"; $Env:GOARCH = "amd64"
 go generate
-go build
+garble build
 
 # Zip Windows binary
 tar.exe -acf "dist/Six-Patches-Of-Pain-$VERSION-Windows.zip" Six-Patches-Of-Pain.exe data/xdelta3.exe
