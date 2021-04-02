@@ -293,13 +293,58 @@ func isGNT4(filePath string) bool {
 			fmt.Println("Validating GNT4 ISO is not modified...")
 			hashValue, err := hashFile(filePath)
 			check(err)
-			// 60aefa3e is the hash for a good dump, but we currently use a bad dump instead.
-			// The bad dump is superior as it pads with zeroes instead of random bytes.
-			// This means it compresses down much better.
+			if hashValue == "60aefa3e" {
+				// 60aefa3e is the hash for a good dump, but we currently use a "bad" dump instead.
+				// The bad dump is superior as it pads with zeroes instead of random bytes.
+				// Confirm the user is okay with modifying their good dump to be a bad dump.
+				fmt.Println("\nThe vanilla ISO you provided must be modified in order to be used for this auto updater.")
+				fmt.Printf("Please press enter if you are okay with this ISO being modified.\n\n")
+				fmt.Println("If you are not okay with this ISO being modified, please exit this application.")
+				fmt.Println("\nPress enter to continue...")
+				var output string
+				fmt.Scanln(&output)
+				err = patchGoodDump(filePath)
+				check(err)
+				return true
+			}
 			return hashValue == "55ee8b1a"
 		}
 	}
 	return false
+}
+
+// Patches a good dump of vanilla GNT4 to be the expected "bad" dump of GNT4
+func patchGoodDump(filePath string) error {
+	file, err := os.OpenFile(filePath, os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	// First write this weird four byte word to bi2.bin
+	_, err = file.WriteAt([]byte{0x00, 0x52, 0x02, 0x02}, 0x500)
+	if err != nil {
+		return err
+	}
+	var zeroes [4096]byte
+	// There are random padding bytes from 0x248104 to 0xC4F8000 (0xC2AFEFC bytes).
+	// Replace them with zeroes by looping 49839 times. Then add 3836 extra zeroes.
+	for i := 0; i < 49839; i++ {
+		offset := 0x248104 + (i * 4096)
+		_, err := file.WriteAt(zeroes[:], int64(offset))
+		if err != nil {
+			return err
+		}
+	}
+	var moreZeroes [3836]byte
+	_, err = file.WriteAt(moreZeroes[:], 0xC4F7104)
+	if err != nil {
+		return err
+	}
+	var evenMoreZeroes [11108]byte
+	// There are random padding bytes from 0x4553001C - 0x45532B7F (0x2B63 bytes).
+	// Just add 11108 zeroes directly.
+	_, err = file.WriteAt(evenMoreZeroes[:], 0x4553001C)
+	return err
 }
 
 // Download to a file path the file at the given url.
