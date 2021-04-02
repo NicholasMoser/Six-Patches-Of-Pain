@@ -293,6 +293,9 @@ func isGNT4(filePath string) bool {
 			fmt.Println("Validating GNT4 ISO is not modified...")
 			hashValue, err := hashFile(filePath)
 			check(err)
+			// 60aefa3e is the hash for a good dump, but we currently use a bad dump instead.
+			// The bad dump is superior as it pads with zeroes instead of random bytes.
+			// This means it compresses down much better.
 			return hashValue == "55ee8b1a"
 		}
 	}
