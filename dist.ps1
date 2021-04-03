@@ -1,4 +1,4 @@
-$VERSION = "1.0.1"
+$VERSION = "1.1.0"
 
 # Recreate dist directory
 Remove-Item -Force -Recurse -Path dist -ErrorAction Ignore
