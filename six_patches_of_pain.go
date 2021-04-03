@@ -77,11 +77,6 @@ func main() {
 
 // Verify the integrity of the auto-updater and required files.
 func verifyIntegrity() {
-	// Create data directory if it doesn't already exist
-	if !exists(DATA) {
-		err := os.Mkdir(DATA, 0755)
-		check(err)
-	}
 	// Check that xdelta3 exists
 	if runtime.GOOS == "windows" {
 		ExecutableName = WindowsExecutableName
@@ -105,12 +100,22 @@ func verifyIntegrity() {
 			}
 		}
 	} else if runtime.GOOS == "darwin" {
+		// Create the data directory if it doesn't already exist
+		if !exists(DATA) {
+			err := os.Mkdir(DATA, 0755)
+			check(err)
+		}
 		ExecutableName = LinuxExecutableName
 		if !isCommandAvailable(Xdelta) {
 			fmt.Println("Unable to find xdelta, please install xdelta.")
 			fail()
 		}
 	} else {
+		// Create the data directory if it doesn't already exist
+		if !exists(DATA) {
+			err := os.Mkdir(DATA, 0755)
+			check(err)
+		}
 		if !isCommandAvailable(Xdelta3) {
 			fmt.Println("Unable to find xdelta3, please install xdelta3.")
 			fail()
@@ -144,14 +149,14 @@ func getGNT4ISO() string {
 			fmt.Println("Provided path is not valid: " + draggedPath)
 		}
 	}
-	// Second, look for the iso in GNT4_ISO_PATH
+	// Then look for the ISO in GNT4_ISO_PATH
 	if exists(GNT4ISOPath) {
 		isoPath := readFile(GNT4ISOPath)
 		if exists(isoPath) {
 			return isoPath
 		}
 	}
-	// Then, look for it recursively in the current directory
+	// If the ISO isn't found from the previous step, look for it recursively in the current directory
 	gnt4Iso := ""
 	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -167,7 +172,7 @@ func getGNT4ISO() string {
 		setGNT4ISOPath(gnt4Iso)
 		return gnt4Iso
 	}
-	// Last resort, query the user for its location
+	// Last resort, query the user for the location of the ISO
 	for true {
 		fmt.Printf("This updater requires a vanilla GNT4 ISO in order to auto-update.\n")
 		fmt.Printf("Please do one of the following:\n")
@@ -298,12 +303,15 @@ func isGNT4(filePath string) bool {
 				// The bad dump is superior as it pads with zeroes instead of random bytes.
 				// Confirm the user is okay with modifying their good dump to be a bad dump.
 				fmt.Println("\nThe vanilla ISO you provided must be modified in order to be used for this auto updater.")
-				fmt.Printf("Please press enter if you are okay with this ISO being modified.\n\n")
+				fmt.Println("Please press enter if you are okay with this ISO being modified.")
 				fmt.Println("If you are not okay with this ISO being modified, please exit this application.")
+				fmt.Println("\nFor more information, see the following information:")
+				fmt.Println("https://github.com/NicholasMoser/Six-Patches-Of-Pain#why-does-it-say-my-vanilla-iso-needs-to-be-modified")
 				fmt.Println("\nPress enter to continue...")
 				var output string
 				fmt.Scanln(&output)
 				err = patchGoodDump(filePath)
+				fmt.Println("\nISO has been modified and is now valid.")
 				check(err)
 				return true
 			}
