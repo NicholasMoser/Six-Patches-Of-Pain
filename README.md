@@ -45,6 +45,26 @@ Then run Six Patches of Pain like so:
 
 ## Common Questions
 
+### Why does it say my vanilla ISO needs to be modified?
+
+When you create an ISO of a game, you read the data from the disc into a file. It is possible during
+this process that a few bytes are different than expected. This is due to errors when reading the
+disc. When the bytes differ, this is called a "bad dump" since it doesn't match the original game 1:1.
+In many cases, bad dumps are perfectly fine because the bytes that changed are in places that are
+unused. Furthermore, sometimes it is benefitial to create a bad dump, in order for the ISO to
+compress better.
+
+Six Patches of Pain expects that the GNT4 ISO used is a particular bad dump. A good dump uses random
+bytes as padding on the disc, which is unable to be compressed and results in a larger zip size.
+The bad dump used by Six Patches of Pain uses zeroes instead of random bytes so that it compresses
+cleanly. When you use Six Patches of Pain with a good dump, it will ask you if you're okay with
+modifying it to be the expected "bad dump".
+
+When Six Patches of Pain asks to modify your good dump GNT4 ISO you have a few options. If you don't
+care just hit enter and let it modify the file. If you are particularly concerned with keeping your
+good dump ISO, consider creating a copy of it to be modified instead and use that with Six Patches
+of Pain.
+
 ### It says I'm already on the latest version but I want to reinstall it
 
 Open the `data` folder, delete the file named `current_version`, and restart Six Patches of Pain.
