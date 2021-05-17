@@ -76,16 +76,22 @@ To build the code, first make sure you have [go 1.16+](https://golang.org/) inst
 Then install `pb` and `goversioninfo` by running:
 
 ```bash
-go get github.com/cheggaaa/pb/v3
-go get github.com/josephspurrier/goversioninfo/cmd/goversioninfo
+make get
 ```
 
 Finally, build the code with:
 
 ```bash
-go generate
-go build
+make platform
 ```
+
+Currently Windows, Linux, and Mac are supported with respectively
+```
+windows
+linux
+mac
+```
+
 
 Different build environments can be targeted by using the `GOOS` env entry.
 
@@ -93,12 +99,11 @@ Different build environments can be targeted by using the `GOOS` env entry.
 
 ```powershell
 $Env:GOOS = "windows"; $Env:GOARCH = "amd64"
-go generate
-go build
+make windows
 $Env:GOOS = "linux"; $Env:GOARCH = "amd64"
-go build
+make linux
 $Env:GOOS = "darwin"; $Env:GOARCH = "amd64"
-go build
+make mac
 ```
 
 ## Legal
