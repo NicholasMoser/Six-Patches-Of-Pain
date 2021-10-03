@@ -71,9 +71,11 @@ Open the `data` folder, delete the file named `current_version`, and restart Six
 
 ### How do I auto update from a different location (e.g. for betas)
 
-First get the Github repository URL to download it from, such as https://api.github.com/repos/Super-GNT4/SCON4-Betas/releases
+First get the Github repository API URL to download it from, such as: https://api.github.com/repos/Super-GNT4/SCON4-Betas/releases
 
-Then make sure you've run Six Patches of Pain at least once. After you've verified that, open the folder titled `data`. You should see a file titled `git_repository`. 
+Then make sure you've run Six Patches of Pain at least once. After you've do so, open the folder titled `data`. You should see a file titled `git_repository`. Right click on this file and select **Open with**. Select **Notepad**. Replace the URL in this file with the new URL and save the file.
+
+You are now done, downloads will now come from this location instead of the previous.
 
 ![Example of using a different repository](different-repo-example.png?raw=true "Example of using a different repository")
 
