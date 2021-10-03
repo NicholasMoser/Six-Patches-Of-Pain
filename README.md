@@ -69,6 +69,14 @@ of Pain.
 
 Open the `data` folder, delete the file named `current_version`, and restart Six Patches of Pain.
 
+### How do I auto update from a different location (e.g. for betas)
+
+First get the Github repository URL to download it from, such as https://api.github.com/repos/Super-GNT4/SCON4-Betas/releases
+
+Then make sure you've run Six Patches of Pain at least once. After you've verified that, open the folder titled `data`. You should see a file titled `git_repository`. 
+
+![Example of using a different repository](different-repo-example.png?raw=true "Example of using a different repository")
+
 ## Building
 
 To build the code, first make sure you have [go 1.16+](https://golang.org/) installed.
