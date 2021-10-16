@@ -57,6 +57,9 @@ var DefaultGNT4ISO = "data/GNT4.iso"
 // argISOPath path of the GNT4 ISO given as argument
 var argISOPath string
 
+// saveConfig boolean that decides if the given config is saved to file or not
+var saveConfig bool
+
 // WindowsExecutableName the name of the Windows executable
 var WindowsExecutableName = "Six-Patches-Of-Pain.exe"
 
@@ -87,6 +90,7 @@ func main() {
 func argParse() {
 	flag.StringVar(&argGitRepository,"r",DefaultGitRepository,"Specify git repository to download updates from as 'https://api.github.com/repos/{user}/{repository}/releases'")
 	flag.StringVar(&argISOPath,"p",DefaultGNT4ISO,"Specify path of the GNT4 ISO")
+	flag.BoolVar(&saveConfig,"s",false,"Specify if the given config should be saved for future use")
 
 	flag.Parse()
 }
@@ -138,11 +142,31 @@ func verifyIntegrity() {
 		}
 		ExecutableName = LinuxExecutableName
 	}
-	// If git repository is not set, set it to the default release repository
+	// If git repository is not set, set it to the default release repository. If set, but different from argument, reset if saveConfig arg is set
 	if !exists(GitRepository) {
 		d1 := []byte(argGitRepository)
 		err := ioutil.WriteFile(GitRepository, d1, 0644)
 		check(err)
+	}
+	if saveConfig {
+		if readFile(GitRepository) != argGitRepository {
+			d1 := []byte(argGitRepository)
+			err := ioutil.WriteFile(GitRepository, d1, 0644)
+			check(err)
+		}
+	}
+	// If iso path is not set, set it to the default. If set, but different from argument, reset if saveConfig arg is set
+	if !exists(GNT4ISOPath) {
+		d1 := []byte(argISOPath)
+		err := ioutil.WriteFile(GNT4ISOPath, d1, 0644)
+		check(err)
+	}
+	if saveConfig {
+		if readFile(GNT4ISOPath) != argISOPath {
+			d1 := []byte(argISOPath)
+			err := ioutil.WriteFile(GNT4ISOPath, d1, 0644)
+			check(err)
+		}
 	}
 	// Delete any existing patch files, since they may be corrupted/old
 	if exists(PatchFile) {
@@ -166,11 +190,10 @@ func getGNT4ISO() string {
 		}
 	}
 	// Then look for if it was provided as a named arg
-	if exists(argISOPath) {
-		isoPath := readFile(argISOPath)
-		if exists(isoPath) {
-			return isoPath
-		}
+	isoPath := argISOPath
+	print(isoPath)
+	if exists(isoPath) {
+		return isoPath
 	}
 	// Then look for the ISO in GNT4_ISO_PATH
 	if exists(GNT4ISOPath) {
