@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -41,6 +42,9 @@ var GitRepository = "data/git_repository"
 // DefaultGitRepository default git repository to download new releases from
 var DefaultGitRepository = "https://api.github.com/repos/NicholasMoser/SCON4-Releases/releases"
 
+// argGitRepository git repository given as argument to download new releases from
+var argGitRepository string
+
 // PatchFile the patch file to be downloaded
 var PatchFile = "data/patch"
 
@@ -49,6 +53,9 @@ var GNT4ISOPath = "data/gnt4_iso_path"
 
 // DefaultGNT4ISO default name of the GNT4 iso if the user downloads it
 var DefaultGNT4ISO = "data/GNT4.iso"
+
+// argISOPath path of the GNT4 ISO given as argument
+var argISOPath string
 
 // WindowsExecutableName the name of the Windows executable
 var WindowsExecutableName = "Six-Patches-Of-Pain.exe"
@@ -63,6 +70,7 @@ func main() {
 	version := "1.1.0"
 	fmt.Printf("Starting Six Patches of Pain %s....\n", version)
 	fmt.Println()
+	argParse()
 	verifyIntegrity()
 	gnt4Iso := getGNT4ISO()
 	newVersion := downloadNewVersion()
@@ -73,6 +81,14 @@ func main() {
 		os.Remove(PatchFile)
 	}
 	exit(0)
+}
+
+// Parse the arguments
+func argParse() {
+	flag.StringVar(&argGitRepository,"r",DefaultGitRepository,"Specify git repository to download updates from as 'https://api.github.com/repos/{user}/{repository}/releases'")
+	flag.StringVar(&argISOPath,"p",DefaultGNT4ISO,"Specify path of the GNT4 ISO")
+
+	flag.Parse()
 }
 
 // Verify the integrity of the auto-updater and required files.
@@ -124,7 +140,7 @@ func verifyIntegrity() {
 	}
 	// If git repository is not set, set it to the default release repository
 	if !exists(GitRepository) {
-		d1 := []byte(DefaultGitRepository)
+		d1 := []byte(argGitRepository)
 		err := ioutil.WriteFile(GitRepository, d1, 0644)
 		check(err)
 	}
@@ -137,7 +153,7 @@ func verifyIntegrity() {
 // Retrieves the vanilla GNT4 iso to patch against.
 func getGNT4ISO() string {
 	// First, check if it was drag and dropped onto the executable or provided as an arg
-	if len(os.Args) > 1 {
+	if len(os.Args) == 2 {
 		var draggedPath = os.Args[1]
 		if exists(draggedPath) {
 			if isGNT4(draggedPath) {
@@ -147,6 +163,13 @@ func getGNT4ISO() string {
 			fmt.Println("Provided file is not a vanilla GNT4 ISO: " + draggedPath)
 		} else {
 			fmt.Println("Provided path is not valid: " + draggedPath)
+		}
+	}
+	// Then look for if it was provided as a named arg
+	if exists(argISOPath) {
+		isoPath := readFile(argISOPath)
+		if exists(isoPath) {
+			return isoPath
 		}
 	}
 	// Then look for the ISO in GNT4_ISO_PATH
