@@ -37,10 +37,10 @@ var Xdelta = "xdelta"
 var CurrentVersion = "data/current_version"
 
 // GitRepository git repo to download new releases from
-var GitRepository = "data/git_repository"
+var GitRepositoryFile = "data/git_repository"
 
 // DefaultGitRepository default git repository to download new releases from
-var DefaultGitRepository = "https://api.github.com/repos/NicholasMoser/SCON4-Releases/releases"
+var GitRepository = "https://api.github.com/repos/NicholasMoser/SCON4-Releases/releases"
 
 // argGitRepository git repository given as argument to download new releases from
 var argGitRepository string
@@ -51,14 +51,11 @@ var PatchFile = "data/patch"
 // GNT4ISOPath path of the GNT4 ISO if it's not in the current directory
 var GNT4ISOPath = "data/gnt4_iso_path"
 
-// DefaultGNT4ISO default name of the GNT4 iso if the user downloads it
-var DefaultGNT4ISO = "data/GNT4.iso"
+// GNT4ISO default name of the GNT4 iso if the user downloads it
+var GNT4ISO = "data/GNT4.iso"
 
 // argISOPath path of the GNT4 ISO given as argument
 var argISOPath string
-
-// saveConfig boolean that decides if the given config is saved to file or not
-var saveConfig bool
 
 // WindowsExecutableName the name of the Windows executable
 var WindowsExecutableName = "Six-Patches-Of-Pain.exe"
@@ -88,9 +85,8 @@ func main() {
 
 // Parse the arguments
 func argParse() {
-	flag.StringVar(&argGitRepository,"r",DefaultGitRepository,"Specify git repository to download updates from as 'https://api.github.com/repos/{user}/{repository}/releases'")
-	flag.StringVar(&argISOPath,"p",DefaultGNT4ISO,"Specify path of the GNT4 ISO")
-	flag.BoolVar(&saveConfig,"s",false,"Specify if the given config should be saved for future use")
+	flag.StringVar(&argGitRepository,"r","","Specify git repository to download updates from as 'https://api.github.com/repos/{user}/{repository}/releases'")
+	flag.StringVar(&argISOPath,"p","","Specify path of the GNT4 ISO")
 
 	flag.Parse()
 }
@@ -142,31 +138,33 @@ func verifyIntegrity() {
 		}
 		ExecutableName = LinuxExecutableName
 	}
+    if argGitRepository != "" {
+        GitRepository = argGitRepository
+    }
+    if argISOPath != "" {
+        GNT4ISO = argISOPath
+    }
 	// If git repository is not set, set it to the default release repository. If set, but different from argument, reset if saveConfig arg is set
-	if !exists(GitRepository) {
-		d1 := []byte(argGitRepository)
+	if !exists(GitRepositoryFile) {
+		d1 := []byte(GitRepository)
 		err := ioutil.WriteFile(GitRepository, d1, 0644)
 		check(err)
 	}
-	if saveConfig {
-		if readFile(GitRepository) != argGitRepository {
-			d1 := []byte(argGitRepository)
-			err := ioutil.WriteFile(GitRepository, d1, 0644)
-			check(err)
-		}
+	if argGitRepository != "" && readFile(GitRepositoryFile) != argGitRepository {
+		d1 := []byte(GitRepository)
+		err := ioutil.WriteFile(GitRepositoryFile, d1, 0644)
+		check(err)
 	}
 	// If iso path is not set, set it to the default. If set, but different from argument, reset if saveConfig arg is set
 	if !exists(GNT4ISOPath) {
-		d1 := []byte(argISOPath)
+		d1 := []byte(GNT4ISO)
 		err := ioutil.WriteFile(GNT4ISOPath, d1, 0644)
 		check(err)
 	}
-	if saveConfig {
-		if readFile(GNT4ISOPath) != argISOPath {
-			d1 := []byte(argISOPath)
-			err := ioutil.WriteFile(GNT4ISOPath, d1, 0644)
-			check(err)
-		}
+	if argISOPath != "" && readFile(GNT4ISOPath) != GNT4ISO {
+		d1 := []byte(GNT4ISO)
+		err := ioutil.WriteFile(GNT4ISOPath, d1, 0644)
+		check(err)
 	}
 	// Delete any existing patch files, since they may be corrupted/old
 	if exists(PatchFile) {
@@ -191,7 +189,6 @@ func getGNT4ISO() string {
 	}
 	// Then look for if it was provided as a named arg
 	isoPath := argISOPath
-	print(isoPath)
 	if exists(isoPath) {
 		return isoPath
 	}
@@ -239,20 +236,20 @@ func getGNT4ISO() string {
 			fmt.Printf("\nERROR: %s is not a clean vanilla GNT4 ISO\n\n", input)
 		} else {
 			// Download from interwebs
-			err := download(input, DefaultGNT4ISO)
+			err := download(input, GNT4ISO)
 			if err != nil {
 				fmt.Printf("Failed to download file with error: %s\n\n", err.Error())
-				if exists(DefaultGNT4ISO) {
-					os.Remove(DefaultGNT4ISO)
+				if exists(GNT4ISO) {
+					os.Remove(GNT4ISO)
 				}
 			} else {
-				if exists(DefaultGNT4ISO) {
-					if isGNT4(DefaultGNT4ISO) {
-						setGNT4ISOPath(DefaultGNT4ISO)
-						return DefaultGNT4ISO
+				if exists(GNT4ISO) {
+					if isGNT4(GNT4ISO) {
+						setGNT4ISOPath(GNT4ISO)
+						return GNT4ISO
 					}
 					fmt.Printf("\nERROR: Downloaded file was not a vanilla GNT4 ISO.\n\n")
-					os.Remove(DefaultGNT4ISO)
+					os.Remove(GNT4ISO)
 				}
 			}
 		}
@@ -263,7 +260,7 @@ func getGNT4ISO() string {
 // Download a new release if it exists and return the version name.
 func downloadNewVersion() string {
 	// Get the latest release
-	repo := readFile(GitRepository)
+	repo := readFile(GitRepositoryFile)
 	resp, err := http.Get(repo)
 	check(err)
 	defer resp.Body.Close()
