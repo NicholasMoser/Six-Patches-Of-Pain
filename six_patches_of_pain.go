@@ -147,7 +147,7 @@ func verifyIntegrity() {
 	// If git repository is not set, set it to the default release repository. If set, but different from argument, reset if saveConfig arg is set
 	if !exists(GitRepositoryFile) {
 		d1 := []byte(GitRepository)
-		err := ioutil.WriteFile(GitRepository, d1, 0644)
+		err := ioutil.WriteFile(GitRepositoryFile, d1, 0644)
 		check(err)
 	}
 	if argGitRepository != "" && readFile(GitRepositoryFile) != argGitRepository {
