@@ -95,7 +95,7 @@ func main() {
 func argParse() {
 	flag.StringVar(&argGitRepository,"r","","Specify git repository to download updates from as 'https://api.github.com/repos/{user}/{repository}/releases'")
 	flag.StringVar(&argISOPath,"p","","Specify path of the GNT4 ISO")
-    flag.BoolVar(&argSpecificVersion,"specific",false,"Select a specific version to download")
+  flag.BoolVar(&argSpecificVersion,"specific",false,"Select a specific version to download")
 	flag.Parse()
 }
 
