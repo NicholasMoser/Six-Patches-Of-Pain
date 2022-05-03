@@ -45,6 +45,9 @@ var GitRepository = "https://api.github.com/repos/NicholasMoser/SCON4-Releases/r
 // argGitRepository git repository given as argument to download new releases from
 var argGitRepository string
 
+// argSpecificVersion boolean that specifies if you want to select which version to download
+var argSpecificVersion bool
+
 // PatchFile the patch file to be downloaded
 var PatchFile = "data/patch"
 
@@ -73,7 +76,12 @@ func main() {
 	argParse()
 	verifyIntegrity()
 	gnt4Iso := getGNT4ISO()
-	newVersion := downloadNewVersion()
+    var newVersion string
+    if argSpecificVersion {
+        newVersion = downloadSpecificVersion()
+    } else {
+        newVersion = downloadNewVersion()
+    }
 	outputIso := fmt.Sprintf("SCON4-%s.iso", newVersion)
 	patchGNT4(gnt4Iso, outputIso)
 	setCurrentVersion(newVersion)
@@ -87,7 +95,7 @@ func main() {
 func argParse() {
 	flag.StringVar(&argGitRepository,"r","","Specify git repository to download updates from as 'https://api.github.com/repos/{user}/{repository}/releases'")
 	flag.StringVar(&argISOPath,"p","","Specify path of the GNT4 ISO")
-
+    flag.BoolVar(&argSpecificVersion,"specific",false,"Select a specific version to download")
 	flag.Parse()
 }
 
@@ -175,7 +183,7 @@ func verifyIntegrity() {
 // Retrieves the vanilla GNT4 iso to patch against.
 func getGNT4ISO() string {
 	// First, check if it was drag and dropped onto the executable or provided as an arg
-	if len(os.Args) == 2 {
+	if len(os.Args) == 2 && !argSpecificVersion {
 		var draggedPath = os.Args[1]
 		if exists(draggedPath) {
 			if isGNT4(draggedPath) {
@@ -303,6 +311,54 @@ func downloadNewVersion() string {
 	fmt.Println("Downloading: " + latestVersion)
 	download(downloadURL, PatchFile)
 	return latestVersion
+}
+
+// Specify which available version to download
+func downloadSpecificVersion() string {
+	// Get a specific release
+	repo := readFile(GitRepositoryFile)
+	resp, err := http.Get(repo)
+	check(err)
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		fmt.Printf("Unable to access releases for %s\nStatus code: %s", repo, resp.Status)
+	}
+	body, err := io.ReadAll(resp.Body)
+	check(err)
+	var f interface{}
+	err2 := json.Unmarshal(body, &f)
+	check(err2)
+	releases := f.([]interface{})
+	if len(releases) == 0 {
+		fmt.Println("No releases found at " + repo)
+		fail()
+	}
+    for i:=0; i<len(releases); i++ {
+        fmt.Println(i,": ",releases[i].(map[string]interface{})["name"].(string))
+    }
+    fmt.Print("Enter the number of the wished release: ")
+	var input int
+	fmt.Scanln(&input)
+    if input >= len(releases) {
+        input = len(releases) - 1
+    } else if input < 0 {
+        input = 0
+    }
+	specificRelease := releases[input].(map[string]interface{})
+	specificVersion := specificRelease["name"].(string)
+	// Download the patch
+	assets := specificRelease["assets"].([]interface{})
+	if len(assets) == 0 {
+		fmt.Println("No assets found in latest release for " + repo)
+		fail()
+	} else if len(assets) > 1 {
+		fmt.Println("Too many assets found in latest release for " + repo)
+		fail()
+	}
+	downloadURL := assets[0].(map[string]interface{})["browser_download_url"].(string)
+	fmt.Println("Downloading: " + specificVersion)
+	download(downloadURL, PatchFile)
+	return specificVersion
 }
 
 // Patches the given GNT4 ISO to the output SCON4 ISO path using the downloaded patch.
