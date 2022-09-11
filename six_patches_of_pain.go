@@ -2,6 +2,7 @@
 package main
 
 import (
+    "context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -19,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/cheggaaa/pb/v3"
+    "github.com/Athkore/go-xdelta"
 )
 
 // DATA folder for data files
@@ -363,7 +365,8 @@ func downloadSpecificVersion() string {
 
 // Patches the given GNT4 ISO to the output SCON4 ISO path using the downloaded patch.
 func patchGNT4(gnt4Iso string, scon4Iso string) {
-	fmt.Println("Patching GNT4...")
+    fmt.Println("Patching GNT4...")
+    /*
 	var xdelta string
 	if runtime.GOOS == "windows" {
 		xdelta = Xdelta3Exe
@@ -376,6 +379,30 @@ func patchGNT4(gnt4Iso string, scon4Iso string) {
 	out, err := cmd.CombinedOutput()
 	check(err)
 	fmt.Printf("%s\n", out)
+    */
+    gnt4File, err := os.Open(gnt4Iso)
+    check(err)
+    scon4File, err := os.OpenFile(scon4Iso, os.O_WRONLY|os.O_CREATE, 0644)
+    check(err)
+    patchFile, err := os.Open(PatchFile)
+    check(err)
+    gnt4ReadSeeker := io.ReadSeeker(gnt4File)
+    scon4Writer := io.Writer(scon4File)
+    patchReader := io.Reader(patchFile)
+
+    options := xdelta.DecoderOptions{
+        FileID:     scon4Iso,
+        FromFile:   gnt4ReadSeeker,
+        ToFile:     scon4Writer,
+        PatchFile:  patchReader,
+        EnableStats:    true,
+    }
+    enc, err := xdelta.NewDecoder(options)
+    check(err)
+    defer enc.Close()
+    err = enc.Process(context.TODO())
+    check(err)
+
 	if exists(scon4Iso) && getFileSize(scon4Iso) > 0 {
 		isoFullPath, err := filepath.Abs(scon4Iso)
 		check(err)
