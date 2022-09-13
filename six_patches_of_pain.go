@@ -16,7 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
-	"runtime"
+	//"runtime"
 	"strings"
 
 	"github.com/cheggaaa/pb/v3"
@@ -104,6 +104,7 @@ func argParse() {
 // Verify the integrity of the auto-updater and required files.
 func verifyIntegrity() {
 	// Check that xdelta3 exists
+    /*
 	if runtime.GOOS == "windows" {
 		ExecutableName = WindowsExecutableName
 		if !exists(Xdelta3Exe) {
@@ -147,7 +148,11 @@ func verifyIntegrity() {
 			fail()
 		}
 		ExecutableName = LinuxExecutableName
-	}
+	}*/
+    if !exists(DATA) {
+        err := os.Mkdir(DATA, 0755)
+        check(err)
+    }
     if argGitRepository != "" {
         GitRepository = argGitRepository
     }
