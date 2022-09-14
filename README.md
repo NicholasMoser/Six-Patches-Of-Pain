@@ -17,14 +17,14 @@ To download the latest version and patch it, run the program as specified below 
 
 #### Windows
 
-Download the latest Windows release zip, extract it, and run `six_patches_of_pain.exe`
+Download the latest Windows release zip, extract it, and run `Six-Patches-Of-Pain.exe`
 
 #### Mac
 
 Download the latest Mac release zip and extract it. Then run Six Patches of Pain like so:
 
 ```bash
-./six_patches_of_pain
+./Six-Patches-Of-Pain
 ```
 
 #### Linux
@@ -33,7 +33,7 @@ Download the latest Linux release zip and extract it.
 Then run Six Patches of Pain like so:
 
 ```bash
-./six_patches_of_pain
+./Six-Patches-Of-Pain
 ```
 
 ### Download a specific version
@@ -42,15 +42,15 @@ To specify which available version to download and patch to run the program as s
 
 #### Windows
 
-`six_patches_of_pain.exe -specific`
+`Six-Patches-Of-Pain.exe -specific`
 
 #### Mac
 
-`./six_patches_of_pain -specific`
+`./Six-Patches-Of-Pain -specific`
 
 #### Linux
 
-`./six_patches_of_pain -specific`
+`./Six-Patches-Of-Pain -specific`
 
 ## Common Questions
 
