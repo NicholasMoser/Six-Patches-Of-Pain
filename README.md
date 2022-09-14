@@ -11,37 +11,46 @@ Six Patches of Pain is an auto-updater for the **Super Clash of Ninja 4** mod. T
 
 ## How to Use
 
-### Windows
+### Download the latest version
+
+To download the latest version and patch it, run the program as specified below for your OS
+
+#### Windows
 
 Download the latest Windows release zip, extract it, and run `six_patches_of_pain.exe`
 
-### Mac
+#### Mac
 
-Download the latest Mac release zip and extract it. Then make sure you have the following installed:
+Download the latest Mac release zip and extract it. Then run Six Patches of Pain like so:
 
-- Homebrew
-  - Download and install from https://brew.sh/
-- xdelta
-  - To install run `brew install xdelta`
+```bash
+./six_patches_of_pain
+```
 
+#### Linux
+
+Download the latest Linux release zip and extract it.
 Then run Six Patches of Pain like so:
 
 ```bash
 ./six_patches_of_pain
 ```
 
-### Linux
+### Download a specific version
 
-Download the latest Linux release zip and extract it. Then make sure you have the following installed:
+To specify which available version to download and patch to run the program as specified below for your OS, and follow the on screen instructions
 
-- xdelta3
-  - To install run `sudo apt-get install xdelta3`
+#### Windows
 
-Then run Six Patches of Pain like so:
+`six_patches_of_pain.exe -specific`
 
-```bash
-./six_patches_of_pain
-```
+#### Mac
+
+`./six_patches_of_pain -specific`
+
+#### Linux
+
+`./six_patches_of_pain -specific`
 
 ## Common Questions
 
@@ -73,7 +82,15 @@ Open the `data` folder, delete the file named `current_version`, and restart Six
 
 First get the Github repository API URL to download it from, such as: https://api.github.com/repos/Super-GNT4/SCON4-Betas/releases
 
-Then make sure you've run Six Patches of Pain at least once. After you've do so, open the folder titled `data`. You should see a file titled `git_repository`. Right click on this file and select **Open with**. Select **Notepad**. Replace the URL in this file with the new URL and save the file.
+Run the executable with argument `<executable> -r <repository>`
+
+For windows this would look like:
+
+`six-patches-of-pain.exe -r https://api.github.com/repos/Super-GNT4/SCON4-Betas/releases`
+
+###### Alternatively:
+
+Make sure you've run Six Patches of Pain at least once. After you've do so, open the folder titled `data`. You should see a file titled `git_repository`. Right click on this file and select **Open with**. Select **Notepad**. Replace the URL in this file with the new URL and save the file.
 
 You are now done, downloads will now come from this location instead of the previous.
 
@@ -83,7 +100,7 @@ You are now done, downloads will now come from this location instead of the prev
 
 To build the code, first make sure you have [go 1.16+](https://golang.org/) installed.
 
-Then install `pb` and `goversioninfo` by running:
+Then install `pb`, `goversioninfo` and `go-xdelta` by running:
 
 ```bash
 make get
@@ -92,7 +109,7 @@ make get
 Finally, build the code with:
 
 ```bash
-make platform
+make <platform>
 ```
 
 Currently Windows, Linux, and Mac are supported with respectively
@@ -119,7 +136,5 @@ make mac
 ## Legal
 
 This software is licensed under the GNU General Public License v3.0.
-
-The bundled xdelta for Windows is licensed under Apache Public License version 2.0.
 
 The icon for the application is owned by [thedemonknight](https://www.deviantart.com/thedemonknight/art/Naruto-dojutsu-icon-pack-270461865)
