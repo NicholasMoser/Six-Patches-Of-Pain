@@ -11,6 +11,8 @@ github.com/Athkore/go-xdelta v0.4.3-0.20220913193747-46912d43fe2c/go.mod h1:uIIE
 github.com/Athkore/go-xdelta v0.4.3 h1:z1PraF20Eh5fqPgR03J3TDJI4zJkEW4hQvzVwADfmJM=
 github.com/Athkore/go-xdelta v0.4.3/go.mod h1:uIIEY4qpJ97ClVuakr1X4/cXN1W/Uv9LRfzY39VD0Jc=
 github.com/Athkore/go-xdelta v0.4.4/go.mod h1:uIIEY4qpJ97ClVuakr1X4/cXN1W/Uv9LRfzY39VD0Jc=
+github.com/Athkore/go-xdelta v0.4.6 h1:L9a4sLjEbrgZ4qL+dFb7f6Hx02/qdz1pJWYMVd24R1c=
+github.com/Athkore/go-xdelta v0.4.6/go.mod h1:uIIEY4qpJ97ClVuakr1X4/cXN1W/Uv9LRfzY39VD0Jc=
 github.com/VividCortex/ewma v1.1.1 h1:MnEK4VOv6n0RSY4vtRe3h11qjxL3+t0B8yOL8iMXdcM=
 github.com/VividCortex/ewma v1.1.1/go.mod h1:2Tkkvm3sRDVXaiyucHiACn4cqf7DpdyLvmxzcbUokwA=
 github.com/akavel/rsrc v0.8.0 h1:zjWn7ukO9Kc5Q62DOJCcxGpXC18RawVtYAGdz2aLlfw=
