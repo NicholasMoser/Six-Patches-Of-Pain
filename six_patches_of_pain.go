@@ -2,6 +2,7 @@
 package main
 
 import (
+    "context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -15,23 +16,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 
 	"github.com/cheggaaa/pb/v3"
+    "github.com/Athkore/go-xdelta"
 )
 
 // DATA folder for data files
 var DATA = "data"
-
-// Xdelta3Exe Windows binary
-var Xdelta3Exe = "data/xdelta3.exe"
-
-// Xdelta3 Linux binary
-var Xdelta3 = "xdelta3"
-
-// Xdelta Mac binary
-var Xdelta = "xdelta"
 
 // CurrentVersion current version to see if a newer version exists
 var CurrentVersion = "data/current_version"
@@ -101,51 +93,11 @@ func argParse() {
 
 // Verify the integrity of the auto-updater and required files.
 func verifyIntegrity() {
-	// Check that xdelta3 exists
-	if runtime.GOOS == "windows" {
-		ExecutableName = WindowsExecutableName
-		if !exists(Xdelta3Exe) {
-			// Make sure that the current working directory is at the exe
-			// This may not be true when dragging and dropping an ISO in Windows
-			if strings.HasSuffix(os.Args[0], WindowsExecutableName) {
-				dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-				check(err)
-				os.Chdir(dir)
-			}
-			if !exists(Xdelta3Exe) {
-				fmt.Println("Unable to find xdelta3.exe in the data folder.")
-				fmt.Println("Please make sure you extracted the entire zip file, not just Six-Patches-Of-Pain.exe")
-				fmt.Println()
-				fmt.Println("After following the above instructions, if you still encounter issues:")
-				fmt.Println("Please verify that there is a folder named data with a file named xdelta3.exe")
-				fmt.Println("If you do not see it, redownload and extract Six Patches of Pain.")
-				fmt.Println("If you still don't see xdelta3.exe it may be an issue with your antivirus.")
-				fail()
-			}
-		}
-	} else if runtime.GOOS == "darwin" {
-		// Create the data directory if it doesn't already exist
-		if !exists(DATA) {
-			err := os.Mkdir(DATA, 0755)
-			check(err)
-		}
-		ExecutableName = LinuxExecutableName
-		if !isCommandAvailable(Xdelta) {
-			fmt.Println("Unable to find xdelta, please install xdelta.")
-			fail()
-		}
-	} else {
-		// Create the data directory if it doesn't already exist
-		if !exists(DATA) {
-			err := os.Mkdir(DATA, 0755)
-			check(err)
-		}
-		if !isCommandAvailable(Xdelta3) {
-			fmt.Println("Unable to find xdelta3, please install xdelta3.")
-			fail()
-		}
-		ExecutableName = LinuxExecutableName
-	}
+    // Create the data directory if it doesn't already exist
+    if !exists(DATA) {
+        err := os.Mkdir(DATA, 0755)
+        check(err)
+    }
     if argGitRepository != "" {
         GitRepository = argGitRepository
     }
@@ -363,19 +315,30 @@ func downloadSpecificVersion() string {
 
 // Patches the given GNT4 ISO to the output SCON4 ISO path using the downloaded patch.
 func patchGNT4(gnt4Iso string, scon4Iso string) {
-	fmt.Println("Patching GNT4...")
-	var xdelta string
-	if runtime.GOOS == "windows" {
-		xdelta = Xdelta3Exe
-	} else if runtime.GOOS == "darwin" {
-		xdelta = Xdelta
-	} else {
-		xdelta = Xdelta3
-	}
-	cmd := exec.Command(xdelta, "-f", "-d", "-s", gnt4Iso, PatchFile, scon4Iso)
-	out, err := cmd.CombinedOutput()
-	check(err)
-	fmt.Printf("%s\n", out)
+    fmt.Println("Patching GNT4...")
+    gnt4File, err := os.Open(gnt4Iso)
+    check(err)
+    scon4File, err := os.OpenFile(scon4Iso, os.O_WRONLY|os.O_CREATE, 0644)
+    check(err)
+    patchFile, err := os.Open(PatchFile)
+    check(err)
+    gnt4ReadSeeker := io.ReadSeeker(gnt4File)
+    scon4Writer := io.Writer(scon4File)
+    patchReader := io.Reader(patchFile)
+
+    options := xdelta.DecoderOptions{
+        FileID:     scon4Iso,
+        FromFile:   gnt4ReadSeeker,
+        ToFile:     scon4Writer,
+        PatchFile:  patchReader,
+        EnableStats:    true,
+    }
+    enc, err := xdelta.NewDecoder(options)
+    check(err)
+    defer enc.Close()
+    err = enc.Process(context.TODO())
+    check(err)
+
 	if exists(scon4Iso) && getFileSize(scon4Iso) > 0 {
 		isoFullPath, err := filepath.Abs(scon4Iso)
 		check(err)
