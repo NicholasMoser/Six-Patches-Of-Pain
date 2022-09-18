@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/cheggaaa/pb/v3"
 )
 
 // Test converting a GNT4 nkit to iso
@@ -57,8 +59,8 @@ func main() {
 	buf := make([]byte, buf_size)
 	i := int64(0x250000)
 	offset := int64(0xC2A8000)
-	//iterations := 0x4AB5D800 / buf_size
-	//bar := pb.StartNew(iterations)
+	iterations := 0x4AB5D800 / buf_size
+	bar := pb.StartNew(iterations)
 	for {
 		num, err1 := in.ReadAt(buf, i)
 		// Need to write out bytes before EOF check since you can have both EOF and bytes read
@@ -78,9 +80,9 @@ func main() {
 			offset += 0x2B7C
 		}
 		i += int64(buf_size)
-		//bar.Increment()
+		bar.Increment()
 	}
-	//bar.Finish()
+	bar.Finish()
 
 	// Last little bit of cleanup
 	_, err = out.WriteAt(make([]byte, 0x2), 0x45532B7E)
