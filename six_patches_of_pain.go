@@ -373,9 +373,9 @@ func isGNT4(filePath string) bool {
 					// This is an Nkit ISO, but we currently use a "bad" ISO dump instead.
 					// The bad dump is superior as it pads with zeroes instead of random bytes.
 					// Confirm the user is okay with modifying their Nkit to be a bad dump.
-					fmt.Println("\nNkit ISOs cannot be patched. Therefore this auto updater must create a normal ISO from it.")
-					fmt.Println("Please press enter if you are okay with creating a new ISO file.")
-					fmt.Println("If you are not okay with creating a new ISO file, please exit this application.")
+					fmt.Println("\nNkit ISOs must be modified in order to be used for this auto updater.")
+					fmt.Println("Please press enter if you are okay with this nkit being covnerted to a normal ISO.")
+					fmt.Println("If you are not okay with this nkit being modified, please exit this application.")
 					fmt.Println("\nFor more information, see the following information:")
 					fmt.Println("https://github.com/NicholasMoser/Six-Patches-Of-Pain#why-can-i-not-use-nkit")
 					fmt.Println("\nPress enter to continue...")
