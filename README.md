@@ -74,6 +74,11 @@ care just hit enter and let it modify the file. If you are particularly concerne
 good dump ISO, consider creating a copy of it to be modified instead and use that with Six Patches
 of Pain.
 
+### Why Can I Not Use Nkit
+
+Nkit ISOs are compressed versions of normal game ISOs. Six Patches of Pain expects a normal game ISO,
+and therefore the Nkit ISO must be converted to a normal game ISO.
+
 ### It says I'm already on the latest version but I want to reinstall it
 
 Open the `data` folder, delete the file named `current_version`, and restart Six Patches of Pain.
