@@ -3,37 +3,35 @@ package main
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"os"
+    "testing"
 
 	"github.com/cheggaaa/pb/v3"
 )
 
 // Test converting a GNT4 nkit to iso
-func main() {
-	fmt.Println("Converting GNT4 nkit to iso...")
-
+func TestConvert(t *testing.T) {
 	// Read sys bytes
-	in, err := os.OpenFile("../GNT4.nkit.iso", os.O_RDONLY, 0644)
-	check(err)
+	in, err := os.OpenFile("GNT4.nkit.iso", os.O_RDONLY, 0644)
+	check_t(err, t)
 	defer in.Close()
 	sys := make([]byte, 0x2480F0)
 	_, err = in.Read(sys)
-	check(err)
+	check_t(err, t)
 
 	// Write sys bytes
-	out, err := os.Create("../test.iso")
-	check(err)
+	out, err := os.Create("test.iso")
+	check_t(err, t)
 	defer out.Close()
 	_, err = out.Write(sys)
-	check(err)
+	check_t(err, t)
 
 	// Fix sys bytes
 	_, err = out.WriteAt(make([]byte, 0x14), 0x200)
-	check(err)
+	check_t(err, t)
 	_, err = out.WriteAt([]byte{0x00, 0x52, 0x02, 0x02}, 0x500)
-	check(err)
+	check_t(err, t)
 
 	// Fix file system table (fst.bin)
 	skip := []int64{0x245250, 0x24525C, 0x24612C, 0x2462B8, 0x246660, 0x246720}
@@ -41,7 +39,7 @@ func main() {
 		if !contains(skip, i) {
 			buf := make([]byte, 0x4)
 			_, err := in.ReadAt(buf, i)
-			check(err)
+			check_t(err, t)
 			offset := binary.BigEndian.Uint32(buf)
 			new_offset := offset + 0xC2A8000
 			if i >= 0x245268 {
@@ -49,7 +47,7 @@ func main() {
 			}
 			binary.BigEndian.PutUint32(buf, new_offset)
 			_, err = out.WriteAt(buf, i)
-			check(err)
+			check_t(err, t)
 		}
 	}
 	_, err = out.WriteAt(make([]byte, 0x4), 0x2480E8)
@@ -70,7 +68,7 @@ func main() {
 				buf = buf[:num-0x37C]
 			}
 			_, err2 := out.WriteAt(buf, i+offset)
-			check(err2)
+			check_t(err2, t)
 		}
 		if errors.Is(err1, io.EOF) {
 			break
@@ -86,21 +84,12 @@ func main() {
 
 	// Last little bit of cleanup
 	_, err = out.WriteAt(make([]byte, 0x2), 0x45532B7E)
-	check(err)
+	check_t(err, t)
 
 }
 
-func contains(s []int64, val int64) bool {
-	for _, v := range s {
-		if v == val {
-			return true
-		}
-	}
-	return false
-}
-
-func check(e error) {
+func check_t(e error, t *testing.T) {
 	if e != nil {
-		panic(e)
+        t.Errorf("Error %s", e)
 	}
 }
