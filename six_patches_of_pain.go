@@ -63,7 +63,7 @@ var LinuxExecutableName = "Six-Patches-Of-Pain"
 var ExecutableName string
 
 func main() {
-	version := "1.2.0"
+	version := "1.2.1"
 	fmt.Printf("Starting Six Patches of Pain %s....\n", version)
 	fmt.Println()
 	argParse()
