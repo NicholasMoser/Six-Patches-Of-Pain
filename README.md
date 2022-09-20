@@ -103,7 +103,7 @@ You are now done, downloads will now come from this location instead of the prev
 
 ## Building
 
-To build the code, first make sure you have [go 1.16+](https://golang.org/) installed.
+To build the code, first make sure you have [go 1.16+](https://golang.org/), and a c/c++ compiler installed for your target system installed.
 
 Then install `pb`, `goversioninfo` and `go-xdelta` by running:
 
