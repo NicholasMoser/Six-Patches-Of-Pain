@@ -1,0 +1,213 @@
+name: Builds
+
+on:
+  release:
+    types:
+      - prereleased
+
+jobs:
+  skip_duplicates:
+    name: Skip Duplicate Runs
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@master
+        with:
+          concurrent_skipping: "same_content"
+          do_not_skip: '["push", "workflow_dispatch", "schedule"]'
+
+  windows:
+    needs: skip_duplicates
+    if: ${{ needs.skip_duplicates.outputs.should_skip != 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [windows]
+        include:
+          - build_type: windows
+            artifact_name: windows
+            build_config: Release
+    name: "Windows"
+    runs-on: windows-2019
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v3
+      - name: "Setup Go"
+        uses: actions/setup-go@v3
+        with:
+          go-version: '>=1.16.0'
+      - name: "Setup MinGW"
+        uses: egor-tensin/setup-mingw@v2
+        with:
+          platform: x64
+      - name: "Install Garble"
+        shell: cmd
+        run: |
+          go install mvdan.cc/garble@latest
+      - name: 'Fetch Git Tags'
+        shell: bash
+        if: success()
+        run: |
+          git fetch --prune --unshallow
+          echo "GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)" >> $GITHUB_ENV
+          echo "GIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "GIT_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+          echo "CURR_DATE=$(date +%Y-%m-%d)" >> $GITHUB_ENV
+      - name: "Build Six Patches Of Pain"
+        shell: cmd
+        run: |
+          make get
+          go generate
+          garble build -o .\build\Six-Patches-Of-Pain.exe six_patches_of_pain.go
+      - name: "Package Artifact"
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir artifact
+          move .\build\Six-Patches-Of-Pain.exe .\artifact\
+      - name: "Publish"
+        if: success()
+        uses: actions/upload-artifact@v2-preview
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: "./artifact/"
+
+  linux:
+    needs: skip_duplicates
+    if: ${{ needs.skip_duplicates.outputs.should_skip != 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [linux]
+        include:
+          - build_type: linux
+            artifact_name: linux
+    name: "Ubuntu ${{ matrix.build_type }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v3
+      - name: "Setup Go"
+        uses: actions/setup-go@v3
+        with:
+          go-version: '>=1.16.0'
+      - name: 'Fetch Git Tags'
+        if: success()
+        run: |
+          git fetch --prune --unshallow
+          echo "GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)" >> $GITHUB_ENV
+          echo "GIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "GIT_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+          echo "CURR_DATE=$(date +%Y-%m-%d)" >> $GITHUB_ENV
+      - name: "Install prerequisites"
+        if: success()
+        shell: bash
+        run: |
+          sudo dpkg --add-architecture amd64
+          sudo apt update
+          sudo apt install \
+          cmake \
+          pkg-config \
+          git \
+          build-essential
+      - name: "Build ${{ matrix.build_type }}"
+        if: success()
+        working-directory: ${{ github.workspace }}
+        run: |
+          export PATH=$PATH:~/go/bin
+          make get
+          go build -o ./build/Six-Patches-Of-Pain six_patches_of_pain.go
+      - name: "Package"
+        if: success()
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir artifact
+          mv ./build/Six-Patches-Of-Pain ./artifact/
+      - name: "Publish"
+        if: success()
+        uses: actions/upload-artifact@v2-preview
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: "./artifact/"
+
+  macOS:
+    needs: skip_duplicates
+    if: ${{ needs.skip_duplicates.outputs.should_skip != 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [macOS]
+        include:
+          - build_type: macOS
+            artifact_name: macOS
+    name: "macOS"
+    runs-on: macos-10.15
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: "Setup Go"
+        uses: actions/setup-go@v3
+        with:
+          go-version: '>=1.16.0'
+      - name: 'Fetch Git Tags'
+        if: success()
+        run: |
+          git fetch --prune --unshallow
+          echo "GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)" >> $GITHUB_ENV
+          echo "GIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "GIT_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+          echo "CURR_DATE=$(date +%Y-%m-%d)" >> $GITHUB_ENV
+      - name: "Download and Install prerequisites"
+        if: success()
+        shell: bash
+        run: |
+          rm '/usr/local/bin/2to3' || true
+          echo "HOMEBREW_NO_AUTO_UPDATE=1" >> $GITHUB_ENV
+          brew upgrade cmake
+          brew install \
+          make \
+          binutils \
+          gcc \
+          wget
+      #- name: "Build lzma library"
+      #  shell: bash
+      #  working-directory: ${{ github.workspace }}
+      #  run: |
+      #    wget https://tukaani.org/xz/xz-5.2.1.tar.gz
+      #    tar -xvf xz*.tar.gz
+      #    cd xz*
+      #    ./configure \
+      #    --host=x86_64-apple-darwin \
+      #    --prefix="/usr/local/" \
+      #    --enable-static \
+      #    --disable-shared \
+      #    "CC=gcc" \
+      #    "CXX=g++"
+      #    make
+      #    make install
+      - name: "Build ${{ matrix.build_type }}"
+        if: success()
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        env:
+          CERTIFICATE_MACOS_APPLICATION: ${{ secrets.CERTIFICATE_MACOS_APPLICATION }}
+        run: |
+          export LIBRARY_PATH=/usr/local/lib:$LIBRARY_PATH
+          make get
+          go build -o ./build/Six-Patches-Of-Pain six_patches_of_pain.go
+      - name: "Package Release"
+        if: success()
+        shell: bash
+        run: |
+          mkdir artifact
+          mv ./build/Six-Patches-Of-Pain artifact/
+      - name: "Publish"
+        if: success()
+        uses: actions/upload-artifact@v2-preview
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: "./artifact/"
+
