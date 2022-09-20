@@ -3,11 +3,9 @@ windows:
 	go build -o build\\Six-Patches-of-Pain.exe six_patches_of_pain.go 
 
 linux:
-	go generate
 	go build -o ./build/Six-Patches-of-Pain six_patches_of_pain.go 
 
 mac:
-	go generate
 	go build -o ./build/Six-Patches-of-Pain six_patches_of_pain.go 
 
 get:
