@@ -401,6 +401,21 @@ func isGNT4(filePath string) bool {
 					check(err)
 					return true
 				}
+			} else if hashValue == "0371b18c" {
+				// 0371b18c is the CRC32 hash of a ciso file, so we must first convert it to an ISO
+				// Confirm the user is okay with modifying their ciso to be an ISO
+				fmt.Println("\nThe vanilla CISO you provided must be modified in order to be used for this auto updater.")
+				fmt.Println("Please press enter if you are okay with this CISO being modified.")
+				fmt.Println("If you are not okay with this CISO being modified, please exit this application.")
+				fmt.Println("\nFor more information, see the following information:")
+				fmt.Println("https://github.com/NicholasMoser/Six-Patches-Of-Pain#why-can-i-not-use-ciso")
+				fmt.Println("\nPress enter to continue...")
+				var output string
+				fmt.Scanln(&output)
+				err = patchCISO(filePath)
+				fmt.Println("\nCISO has been modified and is now valid.")
+				check(err)
+				return true
 			}
 			return hashValue == "55ee8b1a"
 		}
@@ -439,6 +454,80 @@ func patchGoodDump(filePath string) error {
 	// There are random padding bytes from 0x4553001C - 0x45532B7F (0x2B63 bytes).
 	// Just add 11108 zeroes directly.
 	_, err = file.WriteAt(evenMoreZeroes[:], 0x4553001C)
+	return err
+}
+
+// Patches a CISO of vanilla GNT4 to be the expected "bad" dump of GNT4
+func patchCISO(filePath string) error {
+	fmt.Println("Converting GNT4 CISO to ISO...")
+
+	// Create temp file
+	temp, err := os.CreateTemp("", "example")
+	check(err)
+	defer os.Remove(temp.Name())
+	fmt.Println(temp.Name())
+
+	// Read sys bytes
+	in, err := os.OpenFile(filePath, os.O_WRONLY, 0644)
+	check(err)
+	defer in.Close()
+	sys := make([]byte, 0x2480F0)
+	_, err = in.ReadAt(sys, 0x8000)
+	check(err)
+
+	// Write sys bytes
+	_, err = temp.Write(sys)
+	check(err)
+
+	// Fix sys bytes
+	_, err = temp.WriteAt(make([]byte, 0x14), 0x200)
+	check(err)
+	_, err = temp.WriteAt([]byte{0x00, 0x52, 0x02, 0x02}, 0x500)
+	check(err)
+
+	// Copy the rest of the files over
+	buf_size := 0x4096
+	buf := make([]byte, buf_size)
+	i := int64(0x500000)
+	offset := int64(0xBFF8000)
+	iterations := 0x4AB5D800 / buf_size
+	bar := pb.StartNew(iterations)
+	for {
+		num, err := in.ReadAt(buf, i)
+		check(err)
+		// If near end of where vanilla ISO ends, write the last 0x3CAA bytes and ignore rest of ciso file
+		if i+offset == 0x57054356 {
+			buf = make([]byte, 0x3CAA)
+			_, err := in.ReadAt(buf, i)
+			check(err)
+			_, err2 := temp.WriteAt(buf, i+offset)
+			check(err2)
+			break
+		}
+		if num > 0 {
+			_, err2 := temp.WriteAt(buf, i+offset)
+			check(err2)
+		}
+		i += int64(buf_size)
+		bar.Increment()
+	}
+	bar.Finish()
+
+	var evenMoreZeroes [11108]byte
+	// There are random padding bytes from 0x4553001C - 0x45532B7F (0x2B63 bytes).
+	// Just add 11108 zeroes directly.
+	_, err = temp.WriteAt(evenMoreZeroes[:], 0x4553001C)
+
+	// Copy temp file to ciso
+	temp.Seek(0, 0)
+	in.Seek(0, 0)
+	fmt.Println("Copying temp output back to ciso...")
+	bar2 := pb.Full.Start64(0x57058000)
+	defer bar2.Finish()
+	barReader := bar2.NewProxyReader(temp)
+	_, err = io.Copy(in, barReader)
+	check(err)
+
 	return err
 }
 
