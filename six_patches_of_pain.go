@@ -353,7 +353,7 @@ func patchGNT4(gnt4Iso string, scon4Iso string) {
 
 // Returns whether or not the given file path is vanilla GNT4.
 func isGNT4(filePath string) bool {
-	if strings.HasSuffix(strings.ToLower(filePath), ".iso") {
+	if strings.HasSuffix(strings.ToLower(filePath), ".iso") || strings.HasSuffix(strings.ToLower(filePath), ".ciso") {
 		f, err := os.Open(filePath)
 		check(err)
 		data := make([]byte, 6)
@@ -361,7 +361,8 @@ func isGNT4(filePath string) bool {
 		check(err)
 		f.Close()
 		expected := []byte("G4NJDA")
-		if reflect.DeepEqual(expected, data[:len]) {
+		cisoExpected := []byte{0x43, 0x49, 0x53, 0x4F, 0x00, 0x00} // CISO
+		if reflect.DeepEqual(expected, data[:len]) || reflect.DeepEqual(cisoExpected, data[:len]) {
 			fmt.Println("Validating GNT4 ISO is not modified...")
 			hashValue, err := hashFile(filePath)
 			fmt.Println(hashValue)
@@ -468,7 +469,7 @@ func patchCISO(filePath string) error {
 	fmt.Println(temp.Name())
 
 	// Read sys bytes
-	in, err := os.OpenFile(filePath, os.O_WRONLY, 0644)
+	in, err := os.OpenFile(filePath, os.O_RDWR, 0644)
 	check(err)
 	defer in.Close()
 	sys := make([]byte, 0x2480F0)
