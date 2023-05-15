@@ -1,5 +1,6 @@
 # Auto-updater files
 *.iso
+*.ciso
 /data/current_version
 /data/git_repository
 /data/gnt4_iso_path

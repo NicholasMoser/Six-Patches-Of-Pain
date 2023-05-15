@@ -5,7 +5,7 @@ import (
 	"errors"
 	"io"
 	"os"
-    "testing"
+	"testing"
 
 	"github.com/cheggaaa/pb/v3"
 )
@@ -90,6 +90,6 @@ func TestConvert(t *testing.T) {
 
 func check_t(e error, t *testing.T) {
 	if e != nil {
-        t.Errorf("Error %s", e)
+		t.Errorf("Error %s", e)
 	}
 }
