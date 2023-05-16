@@ -2,7 +2,6 @@
 package main
 
 import (
-	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -19,7 +18,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/Athkore/go-xdelta"
 	"github.com/cheggaaa/pb/v3"
 )
 
@@ -331,24 +329,20 @@ func patchGNT4(gnt4Iso string, scon4Iso string) {
 	scon4Writer := io.Writer(scon4File)
 	patchReader := io.Reader(patchFile)
 
-	options := xdelta.DecoderOptions{
-		FileID:      scon4Iso,
-		FromFile:    gnt4ReadSeeker,
-		ToFile:      scon4Writer,
-		PatchFile:   patchReader,
-		EnableStats: true,
-	}
-	enc, err := xdelta.NewDecoder(options)
-	check(err)
-	defer enc.Close()
-	err = enc.Process(context.TODO())
-	check(err)
+	patchWithXdelta(scon4Iso, gnt4ReadSeeker, scon4Writer, patchReader)
 
 	if exists(scon4Iso) && getFileSize(scon4Iso) > 0 {
 		isoFullPath, err := filepath.Abs(scon4Iso)
 		check(err)
 		fmt.Println("Patching complete. Saved to " + isoFullPath)
+	} else {
+		fmt.Println("Failed to patch ISO, see above messages for more info.")
+		exit(1)
 	}
+}
+
+func patchWithXdelta(scon4Iso string, gnt4ReadSeeker io.ReadSeeker, scon4Writer io.Writer, patchReader io.Reader) {
+	// TODO
 }
 
 // Returns whether or not the given file path is vanilla GNT4.
