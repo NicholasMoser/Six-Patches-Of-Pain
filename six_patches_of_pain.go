@@ -327,7 +327,7 @@ func patchGNT4(gnt4Iso string, scon4Iso string) {
 	check(err)
 	gnt4ReadSeeker := io.ReadSeeker(gnt4File)
 	scon4Writer := io.Writer(scon4File)
-	patchReader := io.Reader(patchFile)
+	patchReader := io.ReadSeeker(patchFile)
 
 	patchWithXdelta(scon4Iso, gnt4ReadSeeker, scon4Writer, patchReader)
 
@@ -339,10 +339,6 @@ func patchGNT4(gnt4Iso string, scon4Iso string) {
 		fmt.Println("Failed to patch ISO, see above messages for more info.")
 		exit(1)
 	}
-}
-
-func patchWithXdelta(scon4Iso string, gnt4ReadSeeker io.ReadSeeker, scon4Writer io.Writer, patchReader io.Reader) {
-	// TODO
 }
 
 // Returns whether or not the given file path is vanilla GNT4.
