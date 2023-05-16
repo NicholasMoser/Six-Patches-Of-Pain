@@ -50,41 +50,7 @@ type WindowHeader struct {
 func patchWithXdelta(scon4Iso string, gnt4Reader io.ReadSeeker, scon4Writer io.Writer, patchReader io.ReadSeeker) {
 	fmt.Println("Patching with xdelta...")
 
-	_, err := patchReader.Seek(0x4, io.SeekCurrent)
-	check(err)
-
-	headerIndicator := readU8(patchReader)
-
-	// VCD_DECOMPRESS
-	if headerIndicator&VCD_DECOMPRESS != 0 {
-		//has secondary decompressor, read its id
-		secondaryDecompressorId := make([]byte, 1)
-		_, err := patchReader.Read(secondaryDecompressorId)
-		check(err)
-
-		if secondaryDecompressorId[0] != 0 {
-			fmt.Println("not implemented: secondary decompressor")
-			exit(1)
-		}
-	}
-
-	// VCD_CODETABLE
-	if headerIndicator&VCD_CODETABLE != 0 {
-		codeTableDataLength := read7BitEncodedInt(patchReader)
-
-		if codeTableDataLength != 0 {
-			fmt.Println("not implemented: custom code table")
-			exit(1)
-		}
-	}
-
-	// VCD_APPHEADER
-	if headerIndicator&VCD_APPHEADER != 0 {
-		// ignore app header data
-		appDataLength := int64(read7BitEncodedInt(patchReader))
-		_, err := patchReader.Seek(appDataLength, io.SeekCurrent)
-		check(err)
-	}
+	parseHeader(patchReader)
 
 	headerEndOffset := getCurrentOffset(patchReader)
 
@@ -100,6 +66,43 @@ func patchWithXdelta(scon4Iso string, gnt4Reader io.ReadSeeker, scon4Writer io.W
 	fmt.Printf("New file size %d\n", newFileSize)
 
 	patchReader.Seek(headerEndOffset, io.SeekStart)
+}
+
+func parseHeader(reader io.ReadSeeker) {
+	_, err := reader.Seek(0x4, io.SeekStart)
+	check(err)
+	headerIndicator := readU8(reader)
+
+	// VCD_DECOMPRESS
+	if headerIndicator&VCD_DECOMPRESS != 0 {
+		//has secondary decompressor, read its id
+		secondaryDecompressorId := make([]byte, 1)
+		_, err := reader.Read(secondaryDecompressorId)
+		check(err)
+
+		if secondaryDecompressorId[0] != 0 {
+			fmt.Println("not implemented: secondary decompressor")
+			exit(1)
+		}
+	}
+
+	// VCD_CODETABLE
+	if headerIndicator&VCD_CODETABLE != 0 {
+		codeTableDataLength := read7BitEncodedInt(reader)
+
+		if codeTableDataLength != 0 {
+			fmt.Println("not implemented: custom code table")
+			exit(1)
+		}
+	}
+
+	// VCD_APPHEADER
+	if headerIndicator&VCD_APPHEADER != 0 {
+		// ignore app header data
+		appDataLength := int64(read7BitEncodedInt(reader))
+		_, err := reader.Seek(appDataLength, io.SeekCurrent)
+		check(err)
+	}
 }
 
 func decodeWindowHeader(reader io.ReadSeeker) WindowHeader {
