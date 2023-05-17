@@ -319,17 +319,15 @@ func downloadSpecificVersion() string {
 // Patches the given GNT4 ISO to the output SCON4 ISO path using the downloaded patch.
 func patchGNT4(gnt4Iso string, scon4Iso string) {
 	fmt.Println("Patching GNT4...")
-	gnt4File, err := os.Open(gnt4Iso)
+	gnt4, err := os.Open(gnt4Iso)
 	check(err)
-	scon4File, err := os.OpenFile(scon4Iso, os.O_WRONLY|os.O_CREATE, 0644)
+	scon4, err := os.OpenFile(scon4Iso, os.O_WRONLY|os.O_CREATE, 0644)
 	check(err)
 	patchFile, err := os.Open(PatchFile)
 	check(err)
-	gnt4ReadSeeker := io.ReadSeeker(gnt4File)
-	scon4Writer := io.Writer(scon4File)
 	patchReader := io.ReadSeeker(patchFile)
 
-	patchWithXdelta(scon4Iso, gnt4ReadSeeker, scon4Writer, patchReader)
+	patchWithXdelta(scon4Iso, *gnt4, *scon4, patchReader, true)
 
 	if exists(scon4Iso) && getFileSize(scon4Iso) > 0 {
 		isoFullPath, err := filepath.Abs(scon4Iso)
