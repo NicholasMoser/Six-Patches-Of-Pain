@@ -321,7 +321,7 @@ func patchGNT4(gnt4Iso string, scon4Iso string) {
 	fmt.Println("Patching GNT4...")
 	gnt4, err := os.Open(gnt4Iso)
 	check(err)
-	scon4, err := os.OpenFile(scon4Iso, os.O_WRONLY|os.O_CREATE, 0644)
+	scon4, err := os.OpenFile(scon4Iso, os.O_RDWR|os.O_CREATE, 0644)
 	check(err)
 	patch, err := os.Open(PatchFile)
 	check(err)

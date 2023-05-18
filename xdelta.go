@@ -173,9 +173,14 @@ func patchWithXdelta(scon4Iso string, gnt4 *os.File, scon4 *os.File, patch *os.F
 		}
 
 		fmt.Println("Check CRC")
-		if validate && winHeader.hasAdler32 && (winHeader.adler32 != adler32(scon4, targetWindowPosition, winHeader.targetWindowLength)) {
-			fmt.Println("error_crc_output")
-			exit(1)
+		if validate && winHeader.hasAdler32 {
+			fmt.Printf("adler32: read %X at offset %X\n", winHeader.targetWindowLength, targetWindowPosition)
+			current := adler32(scon4, targetWindowPosition, winHeader.targetWindowLength)
+			if winHeader.adler32 != current {
+				fmt.Println("Failed CRC check")
+				fmt.Printf("Got %X but expected %X\n", current, winHeader.adler32)
+				exit(1)
+			}
 		}
 
 		patch.Seek(int64(winHeader.addRunDataLength+winHeader.addressesLength+winHeader.instructionsLength), io.SeekCurrent)
@@ -204,7 +209,7 @@ func adler32(scon4 *os.File, offset int, len int) uint32 {
 	a := 1
 	b := 0
 	bytes := make([]byte, len)
-	n, err := scon4.Read(bytes)
+	n, err := scon4.ReadAt(bytes, int64(offset))
 	check(err)
 	if n != len {
 		fmt.Printf("Failed to read %d bytes but instead read %d", len, n)
@@ -212,7 +217,7 @@ func adler32(scon4 *os.File, offset int, len int) uint32 {
 	}
 
 	for i := 0; i < len; i++ {
-		a = (a + int(bytes[i+offset])) % ADLER32_MOD
+		a = (a + int(bytes[i])) % ADLER32_MOD
 		b = (b + a) % ADLER32_MOD
 	}
 
