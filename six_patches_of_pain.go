@@ -323,11 +323,10 @@ func patchGNT4(gnt4Iso string, scon4Iso string) {
 	check(err)
 	scon4, err := os.OpenFile(scon4Iso, os.O_WRONLY|os.O_CREATE, 0644)
 	check(err)
-	patchFile, err := os.Open(PatchFile)
+	patch, err := os.Open(PatchFile)
 	check(err)
-	patchReader := io.ReadSeeker(patchFile)
 
-	patchWithXdelta(scon4Iso, *gnt4, *scon4, patchReader, true)
+	patchWithXdelta(scon4Iso, gnt4, scon4, patch, true)
 
 	if exists(scon4Iso) && getFileSize(scon4Iso) > 0 {
 		isoFullPath, err := filepath.Abs(scon4Iso)

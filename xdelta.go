@@ -58,7 +58,7 @@ type AddressCache struct {
 	nearSize      int
 	sameSize      int
 	nextNearSlot  int
-	addressStream Stream
+	addressStream *Stream
 	near          []int
 	same          []int
 }
@@ -68,59 +68,63 @@ type Stream struct {
 	offset     int64
 }
 
-func patchWithXdelta(scon4Iso string, gnt4 os.File, scon4 os.File, patchReader io.ReadSeeker, validate bool) {
+func patchWithXdelta(scon4Iso string, gnt4 *os.File, scon4 *os.File, patch *os.File, validate bool) {
 	fmt.Println("Patching with xdelta...")
 
-	parseHeader(patchReader)
+	parseHeader(patch)
 
-	headerEndOffset := getCurrentOffset(patchReader)
+	headerEndOffset := getCurrentOffset(patch)
 
 	//calculate target file size
 	newFileSize := 0
-	for !isEOF(patchReader) {
-		winHeader := decodeWindowHeader(patchReader)
+	for !isEOF(patch) {
+		winHeader := decodeWindowHeader(patch)
 		newFileSize += winHeader.targetWindowLength
 		length := int64(winHeader.addRunDataLength + winHeader.addressesLength + winHeader.instructionsLength)
-		_, err := patchReader.Seek(length, io.SeekCurrent)
+		_, err := patch.Seek(length, io.SeekCurrent)
 		check(err)
 	}
 	fmt.Printf("New file size %d\n", newFileSize)
 
-	patchReader.Seek(int64(headerEndOffset), io.SeekStart)
+	patch.Seek(int64(headerEndOffset), io.SeekStart)
 
 	cache := getVCDAddressCache(4, 3)
 	codeTable := getDefaultCodeTable()
 	targetWindowPosition := 0 //renombrar
 
-	for !isEOF(patchReader) {
-		winHeader := decodeWindowHeader(patchReader)
+	for !isEOF(patch) {
+		winHeader := decodeWindowHeader(patch)
+		fmt.Printf("Reading header at %d\n", winHeader.sourcePosition)
 
-		addRunDataStream := Stream{fileStream: patchReader, offset: getCurrentOffset(patchReader)}
-		instructionsStream := Stream{fileStream: patchReader, offset: addRunDataStream.offset + int64(winHeader.addRunDataLength)}
-		addressesStream := Stream{fileStream: patchReader, offset: instructionsStream.offset + int64(winHeader.instructionsLength)}
+		addRunDataStream := Stream{fileStream: patch, offset: getCurrentOffset(patch)}
+		instructionsStream := Stream{fileStream: patch, offset: addRunDataStream.offset + int64(winHeader.addRunDataLength)}
+		addressesStream := Stream{fileStream: patch, offset: instructionsStream.offset + int64(winHeader.instructionsLength)}
 
 		addRunDataIndex := 0
-		resetCache(cache, addressesStream)
+		resetCache(&cache, &addressesStream)
 
 		addressesStreamEndOffset := addressesStream.offset
 
+		fmt.Printf("addressesStreamEndOffset: %d\n", addressesStreamEndOffset)
 		for instructionsStream.offset < addressesStreamEndOffset {
-			instructionIndex := readU8FromStream(instructionsStream)
+			fmt.Printf("%d / %d\n", instructionsStream.offset, addressesStreamEndOffset)
+			instructionIndex := readU8FromStream(&instructionsStream)
 			// Do we need to reset the offset after calling readU8FromStream????????????????????????????
 
 			for i := 0; i < 2; i++ {
 				instruction := codeTable[instructionIndex][i]
+				//fmt.Printf("Instruction: %d\n", instruction.codeType)
 				size := instruction.size
 
 				if size == 0 && instruction.codeType != VCD_NOOP {
-					size = read7BitEncodedIntFromStream(instructionsStream)
+					size = read7BitEncodedIntFromStream(&instructionsStream)
 				}
 
 				if instruction.codeType == VCD_NOOP {
 					continue
 
 				} else if instruction.codeType == VCD_ADD {
-					//addRunDataStream.copyToFile2(tempFile, addRunDataIndex+targetWindowPosition, size);
+					copyToFile2(addRunDataStream, scon4, addRunDataIndex+targetWindowPosition, size)
 					addRunDataIndex += size
 
 				} else if instruction.codeType == VCD_COPY {
@@ -128,7 +132,7 @@ func patchWithXdelta(scon4Iso string, gnt4 os.File, scon4 os.File, patchReader i
 					var absAddr = 0
 
 					// source segment and target segment are treated as if they're concatenated
-					var sourceData os.File
+					var sourceData *os.File
 					if addr < winHeader.sourceLength {
 						absAddr = winHeader.sourcePosition + addr
 						if winHeader.indicator&VCD_SOURCE != 0 {
@@ -150,7 +154,7 @@ func patchWithXdelta(scon4Iso string, gnt4 os.File, scon4 os.File, patchReader i
 						scon4.WriteAt(buff, int64(targetWindowPosition+addRunDataIndex))
 					}
 				} else if instruction.codeType == VCD_RUN {
-					runByte := readU8FromStream(addRunDataStream)
+					runByte := readU8FromStream(&addRunDataStream)
 					offset := targetWindowPosition + addRunDataIndex
 					for j := 0; j < size; j++ {
 						scon4.WriteAt([]byte{runByte}, int64(offset+j+addRunDataIndex))
@@ -169,16 +173,28 @@ func patchWithXdelta(scon4Iso string, gnt4 os.File, scon4 os.File, patchReader i
 			exit(1)
 		}
 
-		patchReader.Seek(int64(winHeader.addRunDataLength+winHeader.addressesLength+winHeader.instructionsLength), io.SeekCurrent)
+		patch.Seek(int64(winHeader.addRunDataLength+winHeader.addressesLength+winHeader.instructionsLength), io.SeekCurrent)
 		targetWindowPosition += winHeader.targetWindowLength
 	}
+}
+
+func copyToFile2(stream Stream, scon4 *os.File, targetOffset int, len int) {
+	// Look at original code and figure out how to use stream here
+	offset := stream.offset
+	buffer := make([]byte, 1)
+	for i := 0; i < len; i++ {
+		stream.fileStream.Seek(offset, io.SeekStart)
+		stream.fileStream.Read(buffer)
+		scon4.WriteAt(buffer, int64(targetOffset+i))
+	}
+	stream.fileStream.Seek(int64(len), io.SeekCurrent)
 }
 
 // ADD TEST FOR THIS
 /* Adler-32 - https://en.wikipedia.org/wiki/Adler-32#Example_implementation */
 const ADLER32_MOD = 0xfff1
 
-func adler32(scon4 os.File, offset int, len int) uint32 {
+func adler32(scon4 *os.File, offset int, len int) uint32 {
 	a := 1
 	b := 0
 	bytes := make([]byte, len)
@@ -232,7 +248,7 @@ func getVCDAddressCache(nearSize int, sameSize int) AddressCache {
 	return AddressCache{nearSize: nearSize, sameSize: sameSize, near: near, same: same}
 }
 
-func resetCache(cache AddressCache, addressStream Stream) {
+func resetCache(cache *AddressCache, addressStream *Stream) {
 	cache.nextNearSlot = 0
 	cache.addressStream = addressStream
 	for i := 0; i < len(cache.near); i++ {
@@ -390,7 +406,7 @@ func readU8(reader io.ReadSeeker) byte {
 	return bytes[0]
 }
 
-func readU8FromStream(stream Stream) byte {
+func readU8FromStream(stream *Stream) byte {
 	stream.fileStream.Seek(int64(stream.offset), io.SeekStart)
 	bytes := make([]byte, 1)
 	len, err := stream.fileStream.Read(bytes)
@@ -427,7 +443,7 @@ func read7BitEncodedInt(reader io.ReadSeeker) int {
 	return num
 }
 
-func read7BitEncodedIntFromStream(stream Stream) int {
+func read7BitEncodedIntFromStream(stream *Stream) int {
 	var num int = 0
 	bits := int(readU8FromStream(stream))
 	num = (num << 7) + (bits & 0x7f)
