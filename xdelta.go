@@ -93,8 +93,9 @@ func patchWithXdelta(scon4Iso string, gnt4 *os.File, scon4 *os.File, patch *os.F
 	targetWindowPosition := 0 //renombrar
 
 	for !isEOF(patch) {
+		fmt.Println("Decoding header")
 		winHeader := decodeWindowHeader(patch)
-		fmt.Printf("Reading header at %d\n", winHeader.sourcePosition)
+		fmt.Printf("Decoded header at %d\n", winHeader.sourcePosition)
 
 		addRunDataStream := Stream{fileStream: patch, offset: getCurrentOffset(patch)}
 		instructionsStream := Stream{fileStream: patch, offset: addRunDataStream.offset + int64(winHeader.addRunDataLength)}
@@ -121,14 +122,17 @@ func patchWithXdelta(scon4Iso string, gnt4 *os.File, scon4 *os.File, patch *os.F
 				}
 
 				if instruction.codeType == VCD_NOOP {
+					fmt.Println("VCD_NOOP")
 					continue
 
 				} else if instruction.codeType == VCD_ADD {
-					copyToFile2(addRunDataStream, scon4, addRunDataIndex+targetWindowPosition, size)
+					fmt.Println("VCD_ADD")
+					copyToFile2(&addRunDataStream, scon4, addRunDataIndex+targetWindowPosition, size)
 					addRunDataIndex += size
 
 				} else if instruction.codeType == VCD_COPY {
-					var addr = decodeAddress(cache, addRunDataIndex+winHeader.sourceLength, instruction.mode)
+					fmt.Println("VCD_COPY")
+					var addr = decodeAddress(&cache, addRunDataIndex+winHeader.sourceLength, instruction.mode)
 					var absAddr = 0
 
 					// source segment and target segment are treated as if they're concatenated
@@ -145,15 +149,15 @@ func patchWithXdelta(scon4Iso string, gnt4 *os.File, scon4 *os.File, patch *os.F
 						sourceData = scon4
 					}
 
-					buff := make([]byte, 1)
-					for size > 0 {
-						size--
-						addRunDataIndex++
-						absAddr++
-						sourceData.ReadAt(buff, int64(absAddr))
-						scon4.WriteAt(buff, int64(targetWindowPosition+addRunDataIndex))
-					}
+					fmt.Printf("Copying %d bytes...\n", size)
+					// TODO: Use buffering?
+					buff := make([]byte, size)
+					sourceData.ReadAt(buff, int64(absAddr))
+					scon4.WriteAt(buff, int64(targetWindowPosition+addRunDataIndex))
+					addRunDataIndex += size
+					absAddr += size
 				} else if instruction.codeType == VCD_RUN {
+					fmt.Println("VCD_RUN")
 					runByte := readU8FromStream(&addRunDataStream)
 					offset := targetWindowPosition + addRunDataIndex
 					for j := 0; j < size; j++ {
@@ -168,6 +172,7 @@ func patchWithXdelta(scon4Iso string, gnt4 *os.File, scon4 *os.File, patch *os.F
 			}
 		}
 
+		fmt.Println("Check CRC")
 		if validate && winHeader.hasAdler32 && (winHeader.adler32 != adler32(scon4, targetWindowPosition, winHeader.targetWindowLength)) {
 			fmt.Println("error_crc_output")
 			exit(1)
@@ -175,19 +180,20 @@ func patchWithXdelta(scon4Iso string, gnt4 *os.File, scon4 *os.File, patch *os.F
 
 		patch.Seek(int64(winHeader.addRunDataLength+winHeader.addressesLength+winHeader.instructionsLength), io.SeekCurrent)
 		targetWindowPosition += winHeader.targetWindowLength
+		fmt.Printf("Updated position to %d\n", targetWindowPosition)
 	}
 }
 
-func copyToFile2(stream Stream, scon4 *os.File, targetOffset int, len int) {
+func copyToFile2(stream *Stream, scon4 *os.File, targetOffset int, len int) {
 	// Look at original code and figure out how to use stream here
-	offset := stream.offset
+	stream.fileStream.Seek(stream.offset, io.SeekStart)
 	buffer := make([]byte, 1)
 	for i := 0; i < len; i++ {
-		stream.fileStream.Seek(offset, io.SeekStart)
 		stream.fileStream.Read(buffer)
 		scon4.WriteAt(buffer, int64(targetOffset+i))
 	}
 	stream.fileStream.Seek(int64(len), io.SeekCurrent)
+	stream.offset = int64(len)
 }
 
 // ADD TEST FOR THIS
@@ -213,7 +219,7 @@ func adler32(scon4 *os.File, offset int, len int) uint32 {
 	return uint32((b << 16) | a) //>>>0;
 }
 
-func decodeAddress(cache AddressCache, here int, mode int) int {
+func decodeAddress(cache *AddressCache, here int, mode int) int {
 	var address = 0
 
 	if mode == VCD_MODE_SELF {
@@ -231,7 +237,7 @@ func decodeAddress(cache AddressCache, here int, mode int) int {
 	return address
 }
 
-func update(cache AddressCache, address int) {
+func update(cache *AddressCache, address int) {
 	if cache.nearSize > 0 {
 		cache.near[cache.nextNearSlot] = address
 		cache.nextNearSlot = (cache.nextNearSlot + 1) % cache.nearSize
