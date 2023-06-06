@@ -93,9 +93,9 @@ func patchWithXdelta(scon4Iso string, gnt4 *os.File, scon4 *os.File, patch *os.F
 	targetWindowPosition := 0 //renombrar
 
 	for !isEOF(patch) {
-		fmt.Println("Decoding header")
+		fmt.Println("### NEW WINDOW ###")
 		winHeader := decodeWindowHeader(patch)
-		fmt.Printf("Decoded header at %d\n", winHeader.sourcePosition)
+		//fmt.Printf("Decoded header at %d\n", winHeader.sourcePosition)
 
 		addRunDataStream := Stream{fileStream: patch, offset: getCurrentOffset(patch)}
 		instructionsStream := Stream{fileStream: patch, offset: addRunDataStream.offset + int64(winHeader.addRunDataLength)}
@@ -106,7 +106,7 @@ func patchWithXdelta(scon4Iso string, gnt4 *os.File, scon4 *os.File, patch *os.F
 
 		addressesStreamEndOffset := addressesStream.offset
 
-		fmt.Printf("addressesStreamEndOffset: %d\n", addressesStreamEndOffset)
+		//fmt.Printf("addressesStreamEndOffset: %d\n", addressesStreamEndOffset)
 		for instructionsStream.offset < addressesStreamEndOffset {
 			fmt.Printf("%d / %d\n", instructionsStream.offset, addressesStreamEndOffset)
 			instructionIndex := readU8FromStream(&instructionsStream)
@@ -126,12 +126,12 @@ func patchWithXdelta(scon4Iso string, gnt4 *os.File, scon4 *os.File, patch *os.F
 					continue
 
 				} else if instruction.codeType == VCD_ADD {
-					fmt.Println("VCD_ADD")
+					fmt.Printf("VCD_ADD (%d)\n", size)
 					copyToFile2(&addRunDataStream, scon4, addRunDataIndex+targetWindowPosition, size)
 					addRunDataIndex += size
 
 				} else if instruction.codeType == VCD_COPY {
-					fmt.Println("VCD_COPY")
+					fmt.Printf("VCD_COPY (%d)\n", size)
 					var addr = decodeAddress(&cache, addRunDataIndex+winHeader.sourceLength, instruction.mode)
 					var absAddr = 0
 
@@ -139,27 +139,33 @@ func patchWithXdelta(scon4Iso string, gnt4 *os.File, scon4 *os.File, patch *os.F
 					var sourceData *os.File
 					if addr < winHeader.sourceLength {
 						absAddr = winHeader.sourcePosition + addr
+						fmt.Printf("  absAddr = %d\n", absAddr)
 						if winHeader.indicator&VCD_SOURCE != 0 {
+							fmt.Println("  VCD_SOURCE")
 							sourceData = gnt4
 						} else if winHeader.indicator&VCD_TARGET != 0 {
+							fmt.Println("  VCD_TARGET")
 							sourceData = scon4
 						}
 					} else {
 						absAddr = targetWindowPosition + (addr - winHeader.sourceLength)
+						fmt.Printf("  absAddr = %d", absAddr)
 						sourceData = scon4
 					}
 
-					fmt.Printf("Copying %d bytes...\n", size)
+					//fmt.Printf("Copying %d bytes...\n", size)
 					// TODO: Use buffering?
+					fmt.Println("  >> todo")
 					buff := make([]byte, size)
 					sourceData.ReadAt(buff, int64(absAddr))
 					scon4.WriteAt(buff, int64(targetWindowPosition+addRunDataIndex))
 					addRunDataIndex += size
 					absAddr += size
 				} else if instruction.codeType == VCD_RUN {
-					fmt.Println("VCD_RUN")
+					fmt.Printf("VCD_RUN (%d)\n", size)
 					runByte := readU8FromStream(&addRunDataStream)
 					offset := targetWindowPosition + addRunDataIndex
+					fmt.Printf("  runByte = %d offset = %d\n", runByte, offset)
 					for j := 0; j < size; j++ {
 						scon4.WriteAt([]byte{runByte}, int64(offset+j+addRunDataIndex))
 					}
