@@ -172,8 +172,7 @@ func patchWithXdelta(scon4Iso string, gnt4 *os.File, scon4 *os.File, patch *os.F
 
 					addRunDataIndex += size
 				} else {
-					fmt.Println("invalid instruction type found")
-					exit(1)
+					panic("invalid instruction type found")
 				}
 			}
 		}
@@ -183,9 +182,7 @@ func patchWithXdelta(scon4Iso string, gnt4 *os.File, scon4 *os.File, patch *os.F
 			fmt.Printf("adler32: read %X at offset %X\n", winHeader.targetWindowLength, targetWindowPosition)
 			current := adler32(scon4, targetWindowPosition, winHeader.targetWindowLength)
 			if winHeader.adler32 != current {
-				fmt.Println("Failed CRC check")
-				fmt.Printf("Got %X but expected %X\n", current, winHeader.adler32)
-				exit(1)
+				panic(fmt.Sprintf("Failed CRC check: Got %X but expected %X\n", current, winHeader.adler32))
 			}
 		}
 
@@ -218,8 +215,7 @@ func adler32(scon4 *os.File, offset int, len int) uint32 {
 	n, err := scon4.ReadAt(bytes, int64(offset))
 	check(err)
 	if n != len {
-		fmt.Printf("Failed to read %d bytes but instead read %d", len, n)
-		exit(1)
+		panic(fmt.Sprintf("Failed to read %d bytes but instead read %d", len, n))
 	}
 
 	for i := 0; i < len; i++ {
@@ -355,8 +351,7 @@ func parseHeader(reader io.ReadSeeker) {
 		check(err)
 
 		if secondaryDecompressorId[0] != 0 {
-			fmt.Println("not implemented: secondary decompressor")
-			exit(1)
+			panic("not implemented: secondary decompressor")
 		}
 	}
 
@@ -365,8 +360,7 @@ func parseHeader(reader io.ReadSeeker) {
 		codeTableDataLength := read7BitEncodedInt(reader)
 
 		if codeTableDataLength != 0 {
-			fmt.Println("not implemented: custom code table")
-			exit(1)
+			panic("not implemented: custom code table")
 		}
 	}
 
@@ -395,8 +389,7 @@ func decodeWindowHeader(reader io.ReadSeeker) WindowHeader {
 	windowHeader.targetWindowLength = read7BitEncodedInt(reader)
 	windowHeader.deltaIndicator = readU8(reader) // secondary compression: 1=VCD_DATACOMP,2=VCD_INSTCOMP,4=VCD_ADDRCOMP
 	if windowHeader.deltaIndicator != 0 {
-		fmt.Printf("unimplemented windowHeader.deltaIndicator: %d\n", windowHeader.deltaIndicator)
-		exit(1)
+		panic(fmt.Sprintf("unimplemented windowHeader.deltaIndicator: %d\n", windowHeader.deltaIndicator))
 	}
 
 	windowHeader.addRunDataLength = read7BitEncodedInt(reader)
@@ -417,8 +410,7 @@ func readU8(reader io.ReadSeeker) byte {
 	check(err)
 	if len != 1 {
 		offset := getCurrentOffset(reader)
-		fmt.Printf("Failed to read one byte at offset %d", offset)
-		exit(1)
+		panic(fmt.Sprintf("Failed to read one byte at offset %d", offset))
 	}
 	return bytes[0]
 }
@@ -430,8 +422,7 @@ func readU8FromStream(stream *Stream) byte {
 	check(err)
 	if len != 1 {
 		offset := getCurrentOffset(stream.fileStream)
-		fmt.Printf("Failed to read one byte at offset %d", offset)
-		exit(1)
+		panic(fmt.Sprintf("Failed to read one byte at offset %d", offset))
 	}
 	stream.offset++
 	return bytes[0]
@@ -443,8 +434,7 @@ func readU32(reader io.ReadSeeker) uint32 {
 	check(err)
 	if len != 4 {
 		offset := getCurrentOffset(reader)
-		fmt.Printf("Failed to read four bytes at offset %d", offset)
-		exit(1)
+		panic(fmt.Sprintf("Failed to read four bytes at offset %d", offset))
 	}
 	return binary.BigEndian.Uint32(bytes)
 }
