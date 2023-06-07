@@ -45,6 +45,25 @@ func TestImageBigDifferenceDelta(t *testing.T) {
 	os.Remove(tempPath)
 }
 
+func TestImageBigDifferenceSmallWindowDelta(t *testing.T) {
+	inputPath := "test/ImageBigDifferenceDelta/input.jpg"
+	outputPath := "test/ImageBigDifferenceDelta/output.jpg"
+	tempPath := "test/ImageBigDifferenceDelta/temp2.jpg"
+	patchPath := "test/ImageBigDifferenceDelta/patch_small_window.xdelta"
+
+	os.Remove(tempPath)
+	patchWithXdelta(inputPath, tempPath, patchPath, true)
+
+	if exists(tempPath) && getFileSize(tempPath) > 0 {
+		if !filesEqual(outputPath, tempPath) {
+			t.Fatalf("Files are not equal: %s and %s", outputPath, tempPath)
+		}
+	} else {
+		t.Fatalf("Test output does not exist: %s", tempPath)
+	}
+	os.Remove(tempPath)
+}
+
 func TestAdler32(t *testing.T) {
 	if _adler32([]byte{0, 0}) != 0x00020001 {
 		t.Fatal("Failed adler32 comparison")
