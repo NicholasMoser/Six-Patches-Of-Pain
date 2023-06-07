@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -12,6 +13,7 @@ func TestSimpleDelta(t *testing.T) {
 	tempPath := "test/SimpleDelta/temp.txt"
 	patchPath := "test/SimpleDelta/patch.xdelta"
 
+	os.Remove(tempPath)
 	patchWithXdelta(inputPath, tempPath, patchPath, true)
 
 	if exists(tempPath) && getFileSize(tempPath) > 0 {
@@ -21,6 +23,7 @@ func TestSimpleDelta(t *testing.T) {
 	} else {
 		t.Fatalf("Test output does not exist: %s", tempPath)
 	}
+	os.Remove(tempPath)
 }
 
 func TestImageBigDifferenceDelta(t *testing.T) {
@@ -29,6 +32,7 @@ func TestImageBigDifferenceDelta(t *testing.T) {
 	tempPath := "test/ImageBigDifferenceDelta/temp.jpg"
 	patchPath := "test/ImageBigDifferenceDelta/patch.xdelta"
 
+	os.Remove(tempPath)
 	patchWithXdelta(inputPath, tempPath, patchPath, true)
 
 	if exists(tempPath) && getFileSize(tempPath) > 0 {
@@ -38,6 +42,7 @@ func TestImageBigDifferenceDelta(t *testing.T) {
 	} else {
 		t.Fatalf("Test output does not exist: %s", tempPath)
 	}
+	os.Remove(tempPath)
 }
 
 func TestAdler32(t *testing.T) {
