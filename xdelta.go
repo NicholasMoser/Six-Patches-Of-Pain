@@ -178,9 +178,11 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 					runByte := readU8(addRunDataStream)
 					offset := targetWindowPosition + addRunDataIndex
 					fmt.Printf("  runByte = %d offset = %d\n", runByte, offset)
-					for j := 0; j < size; j++ {
-						scon4.WriteAt([]byte{runByte}, int64(offset+j+addRunDataIndex))
+					buffer := make([]byte, size)
+					for i := range buffer {
+						buffer[i] = runByte
 					}
+					scon4.WriteAt(buffer, int64(offset))
 
 					addRunDataIndex += size
 				} else {
