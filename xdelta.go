@@ -214,8 +214,6 @@ func copyToFile2(stream *os.File, output *os.File, targetOffset int, len int) {
 const ADLER32_MOD = 0xfff1
 
 func adler32(scon4 *os.File, offset int, len int) uint32 {
-	a := 1
-	b := 0
 	bytes := make([]byte, len)
 	n, err := scon4.ReadAt(bytes, int64(offset))
 	check(err)
@@ -223,8 +221,15 @@ func adler32(scon4 *os.File, offset int, len int) uint32 {
 		panic(fmt.Sprintf("Failed to read %d bytes but instead read %d", len, n))
 	}
 
+	return _adler32(bytes)
+}
+
+func _adler32(byteSlice []byte) uint32 {
+	a := 1
+	b := 0
+	len := len(byteSlice)
 	for i := 0; i < len; i++ {
-		a = (a + int(bytes[i])) % ADLER32_MOD
+		a = (a + int(byteSlice[i])) % ADLER32_MOD
 		b = (b + a) % ADLER32_MOD
 	}
 
