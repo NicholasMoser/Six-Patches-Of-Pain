@@ -161,15 +161,9 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 						sourceData = scon4
 					}
 
-					//fmt.Printf("Copying %d bytes...\n", size)
-					// TODO: Use buffering?
-					//fmt.Println("  >> todo")
-					//buff := make([]byte, size)
-					//sourceData.ReadAt(buff, int64(absAddr))
-					//scon4.WriteAt(buff, int64(targetWindowPosition+addRunDataIndex))
-					//addRunDataIndex += size
-					//absAddr += size
-
+					// TODO: This currently handles repeating bytes that have just been written by this loop
+					//       Ideally, we would buffer it so that we don't have to continue doing reads and
+					//       can write it all at once.
 					buff := make([]byte, 1)
 					for size > 0 {
 						size--
