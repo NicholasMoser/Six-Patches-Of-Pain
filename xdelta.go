@@ -92,12 +92,11 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 
 	cache := getVCDAddressCache(4, 3)
 	codeTable := getDefaultCodeTable()
-	targetWindowPosition := 0 //renombrar
+	targetWindowPosition := 0
 
 	for !isEOF(patch) {
 		fmt.Println("### NEW WINDOW ###")
 		winHeader := decodeWindowHeader(patch)
-		//fmt.Printf("Decoded header at %d\n", winHeader.sourcePosition)
 
 		addRunDataStream, err := os.Open(patchPath)
 		check(err)
@@ -117,12 +116,11 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 		addressesStreamEndOffset := getCurrentOffset(addressesStream)
 
 		for getCurrentOffset(instructionsStream) < addressesStreamEndOffset {
-			fmt.Printf("%d / %d\n", getCurrentOffset(instructionsStream), addressesStreamEndOffset)
+			fmt.Printf("Instruction %d / %d\n", getCurrentOffset(instructionsStream), addressesStreamEndOffset)
 			instructionIndex := readU8(instructionsStream)
 
 			for i := 0; i < 2; i++ {
 				instruction := codeTable[instructionIndex][i]
-				//fmt.Printf("Instruction: %d\n", instruction.codeType)
 				size := instruction.size
 
 				if size == 0 && instruction.codeType != VCD_NOOP {
@@ -193,7 +191,6 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 
 		fmt.Println("Check CRC")
 		if validate && winHeader.hasAdler32 {
-			fmt.Printf("adler32: read %X at offset %X\n", winHeader.targetWindowLength, targetWindowPosition)
 			current := adler32(scon4, targetWindowPosition, winHeader.targetWindowLength)
 			if winHeader.adler32 != current {
 				panic(fmt.Sprintf("Failed CRC check: Got %X but expected %X\n", current, winHeader.adler32))
