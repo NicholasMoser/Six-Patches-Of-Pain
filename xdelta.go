@@ -68,10 +68,15 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 
 	gnt4, err := os.Open(inputPath)
 	check(err)
+	defer gnt4.Close()
+
 	scon4, err := os.OpenFile(outputPath, os.O_RDWR|os.O_CREATE, 0644)
 	check(err)
+	defer scon4.Close() // TODO: https://www.joeshaw.org/dont-defer-close-on-writable-files/
+
 	patch, err := os.Open(patchPath)
 	check(err)
+	defer patch.Close()
 
 	parseHeader(patch)
 
@@ -100,14 +105,17 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 
 		addRunDataStream, err := os.Open(patchPath)
 		check(err)
+		defer addRunDataStream.Close()
 		addRunDataStream.Seek(getCurrentOffset(patch), io.SeekStart)
 
 		instructionsStream, err := os.Open(patchPath)
 		check(err)
+		defer instructionsStream.Close()
 		instructionsStream.Seek(getCurrentOffset(addRunDataStream)+int64(winHeader.addRunDataLength), io.SeekStart)
 
 		addressesStream, err := os.Open(patchPath)
 		check(err)
+		defer addressesStream.Close()
 		addressesStream.Seek(getCurrentOffset(instructionsStream)+int64(winHeader.instructionsLength), io.SeekStart)
 
 		addRunDataIndex := 0
