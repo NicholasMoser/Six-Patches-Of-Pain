@@ -119,7 +119,6 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 		for getCurrentOffset(instructionsStream) < addressesStreamEndOffset {
 			fmt.Printf("%d / %d\n", getCurrentOffset(instructionsStream), addressesStreamEndOffset)
 			instructionIndex := readU8(instructionsStream)
-			// Do we need to reset the offset after calling readU8FromStream????????????????????????????
 
 			for i := 0; i < 2; i++ {
 				instruction := codeTable[instructionIndex][i]
@@ -158,18 +157,28 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 						}
 					} else {
 						absAddr = targetWindowPosition + (addr - winHeader.sourceLength)
-						fmt.Printf("  absAddr = %d", absAddr)
+						fmt.Printf("  absAddr = %d\n", absAddr)
 						sourceData = scon4
 					}
 
 					//fmt.Printf("Copying %d bytes...\n", size)
 					// TODO: Use buffering?
-					fmt.Println("  >> todo")
-					buff := make([]byte, size)
-					sourceData.ReadAt(buff, int64(absAddr))
-					scon4.WriteAt(buff, int64(targetWindowPosition+addRunDataIndex))
-					addRunDataIndex += size
-					absAddr += size
+					//fmt.Println("  >> todo")
+					//buff := make([]byte, size)
+					//sourceData.ReadAt(buff, int64(absAddr))
+					//scon4.WriteAt(buff, int64(targetWindowPosition+addRunDataIndex))
+					//addRunDataIndex += size
+					//absAddr += size
+
+					buff := make([]byte, 1)
+					for size > 0 {
+						size--
+						sourceData.ReadAt(buff, int64(absAddr))
+						scon4.WriteAt(buff, int64(targetWindowPosition+addRunDataIndex))
+						addRunDataIndex++
+						absAddr++
+					}
+
 				} else if instruction.codeType == VCD_RUN {
 					fmt.Printf("VCD_RUN (%d)\n", size)
 					runByte := readU8(addRunDataStream)
