@@ -66,13 +66,13 @@ type AddressCache struct {
 func patchWithXdelta(inputPath string, outputPath string, patchPath string, validate bool) {
 	fmt.Println("Patching with xdelta...")
 
-	gnt4, err := os.Open(inputPath)
+	input, err := os.Open(inputPath)
 	check(err)
-	defer gnt4.Close()
+	defer input.Close()
 
-	scon4, err := os.OpenFile(outputPath, os.O_RDWR|os.O_CREATE, 0644)
+	output, err := os.OpenFile(outputPath, os.O_RDWR|os.O_CREATE, 0644)
 	check(err)
-	defer scon4.Close() // TODO: https://www.joeshaw.org/dont-defer-close-on-writable-files/
+	defer output.Close() // TODO: https://www.joeshaw.org/dont-defer-close-on-writable-files/
 
 	patch, err := os.Open(patchPath)
 	check(err)
@@ -141,7 +141,7 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 
 				} else if instruction.codeType == VCD_ADD {
 					//fmt.Printf("VCD_ADD (%d)\n", size)
-					copyToFile2(addRunDataStream, scon4, addRunDataIndex+targetWindowPosition, size)
+					copyToFile2(addRunDataStream, output, addRunDataIndex+targetWindowPosition, size)
 					addRunDataIndex += size
 
 				} else if instruction.codeType == VCD_COPY {
@@ -155,19 +155,19 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 						//fmt.Printf("  absAddr = %d\n", absAddr)
 						if winHeader.indicator&VCD_SOURCE != 0 {
 							//fmt.Println("  VCD_SOURCE")
-							sourceData = gnt4
+							sourceData = input
 						} else if winHeader.indicator&VCD_TARGET != 0 {
 							//fmt.Println("  VCD_TARGET")
-							sourceData = scon4
+							sourceData = output
 						}
 					} else {
 						absAddr = targetWindowPosition + (addr - winHeader.sourceLength)
 						//fmt.Printf("  absAddr = %d\n", absAddr)
-						sourceData = scon4
+						sourceData = output
 					}
 
 					distance := (targetWindowPosition + addRunDataIndex) - absAddr
-					if sourceData == scon4 && size > distance {
+					if sourceData == output && size > distance {
 						// Slow copy that can handle overlap of reading and writing targets
 						// This functionality is usually used to create repeating byte sequences in the target
 						// It's slow because it reads and writes one byte at a time
@@ -175,7 +175,7 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 						for size > 0 {
 							size--
 							sourceData.ReadAt(buff, int64(absAddr))
-							scon4.WriteAt(buff, int64(targetWindowPosition+addRunDataIndex))
+							output.WriteAt(buff, int64(targetWindowPosition+addRunDataIndex))
 							addRunDataIndex++
 							absAddr++
 						}
@@ -183,7 +183,7 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 					// No overlap, fast copy
 					buff := make([]byte, size)
 					sourceData.ReadAt(buff, int64(absAddr))
-					scon4.WriteAt(buff, int64(targetWindowPosition+addRunDataIndex))
+					output.WriteAt(buff, int64(targetWindowPosition+addRunDataIndex))
 					addRunDataIndex += size
 					absAddr += size
 
@@ -196,7 +196,7 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 					for i := range buffer {
 						buffer[i] = runByte
 					}
-					scon4.WriteAt(buffer, int64(offset))
+					output.WriteAt(buffer, int64(offset))
 
 					addRunDataIndex += size
 				} else {
@@ -207,7 +207,7 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 
 		//fmt.Println("Check CRC")
 		if validate && winHeader.hasAdler32 {
-			current := adler32(scon4, targetWindowPosition, winHeader.targetWindowLength)
+			current := adler32(output, targetWindowPosition, winHeader.targetWindowLength)
 			if winHeader.adler32 != current {
 				panic(fmt.Sprintf("Failed CRC check: Got %X but expected %X\n", current, winHeader.adler32))
 			}
@@ -229,9 +229,9 @@ func copyToFile2(stream *os.File, output *os.File, targetOffset int, len int) {
 /* Adler-32 - https://en.wikipedia.org/wiki/Adler-32#Example_implementation */
 const ADLER32_MOD = 0xfff1
 
-func adler32(scon4 *os.File, offset int, len int) uint32 {
+func adler32(file *os.File, offset int, len int) uint32 {
 	bytes := make([]byte, len)
-	n, err := scon4.ReadAt(bytes, int64(offset))
+	n, err := file.ReadAt(bytes, int64(offset))
 	check(err)
 	if n != len {
 		panic(fmt.Sprintf("Failed to read %d bytes but instead read %d", len, n))
@@ -364,16 +364,16 @@ func getDefaultCodeTable() [][]Code {
 	return entries
 }
 
-func parseHeader(reader *os.File) {
-	_, err := reader.Seek(0x4, io.SeekStart)
+func parseHeader(file *os.File) {
+	_, err := file.Seek(0x4, io.SeekStart)
 	check(err)
-	headerIndicator := readU8(reader)
+	headerIndicator := readU8(file)
 
 	// VCD_DECOMPRESS
 	if headerIndicator&VCD_DECOMPRESS != 0 {
 		//has secondary decompressor, read its id
 		secondaryDecompressorId := make([]byte, 1)
-		_, err := reader.Read(secondaryDecompressorId)
+		_, err := file.Read(secondaryDecompressorId)
 		check(err)
 
 		if secondaryDecompressorId[0] != 0 {
@@ -383,7 +383,7 @@ func parseHeader(reader *os.File) {
 
 	// VCD_CODETABLE
 	if headerIndicator&VCD_CODETABLE != 0 {
-		codeTableDataLength := read7BitEncodedInt(reader)
+		codeTableDataLength := read7BitEncodedInt(file)
 
 		if codeTableDataLength != 0 {
 			panic("Not implemented: custom code table")
@@ -393,71 +393,71 @@ func parseHeader(reader *os.File) {
 	// VCD_APPHEADER
 	if headerIndicator&VCD_APPHEADER != 0 {
 		// ignore app header data
-		appDataLength := int64(read7BitEncodedInt(reader))
-		_, err := reader.Seek(appDataLength, io.SeekCurrent)
+		appDataLength := int64(read7BitEncodedInt(file))
+		_, err := file.Seek(appDataLength, io.SeekCurrent)
 		check(err)
 	}
 }
 
-func decodeWindowHeader(reader *os.File) WindowHeader {
+func decodeWindowHeader(file *os.File) WindowHeader {
 	windowHeader := WindowHeader{}
-	windowHeader.indicator = readU8(reader)
+	windowHeader.indicator = readU8(file)
 	windowHeader.sourceLength = 0
 	windowHeader.sourcePosition = 0
 	windowHeader.hasAdler32 = false
 
 	if windowHeader.indicator&VCD_SOURCE != 0 || windowHeader.indicator&VCD_TARGET != 0 {
-		windowHeader.sourceLength = read7BitEncodedInt(reader)
-		windowHeader.sourcePosition = read7BitEncodedInt(reader)
+		windowHeader.sourceLength = read7BitEncodedInt(file)
+		windowHeader.sourcePosition = read7BitEncodedInt(file)
 	}
 
-	windowHeader.deltaLength = read7BitEncodedInt(reader)
-	windowHeader.targetWindowLength = read7BitEncodedInt(reader)
-	windowHeader.deltaIndicator = readU8(reader) // secondary compression: 1=VCD_DATACOMP,2=VCD_INSTCOMP,4=VCD_ADDRCOMP
+	windowHeader.deltaLength = read7BitEncodedInt(file)
+	windowHeader.targetWindowLength = read7BitEncodedInt(file)
+	windowHeader.deltaIndicator = readU8(file) // secondary compression: 1=VCD_DATACOMP,2=VCD_INSTCOMP,4=VCD_ADDRCOMP
 	if windowHeader.deltaIndicator != 0 {
 		panic(fmt.Sprintf("unimplemented windowHeader.deltaIndicator: %d\n", windowHeader.deltaIndicator))
 	}
 
-	windowHeader.addRunDataLength = read7BitEncodedInt(reader)
-	windowHeader.instructionsLength = read7BitEncodedInt(reader)
-	windowHeader.addressesLength = read7BitEncodedInt(reader)
+	windowHeader.addRunDataLength = read7BitEncodedInt(file)
+	windowHeader.instructionsLength = read7BitEncodedInt(file)
+	windowHeader.addressesLength = read7BitEncodedInt(file)
 
 	if (windowHeader.indicator & VCD_ADLER32) == VCD_ADLER32 {
 		windowHeader.hasAdler32 = true
-		windowHeader.adler32 = readU32(reader)
+		windowHeader.adler32 = readU32(file)
 	}
 
 	return windowHeader
 }
 
-func readU8(stream *os.File) byte {
+func readU8(file *os.File) byte {
 	bytes := make([]byte, 1)
-	len, err := stream.Read(bytes)
+	len, err := file.Read(bytes)
 	check(err)
 	if len != 1 {
-		offset := getCurrentOffset(stream)
+		offset := getCurrentOffset(file)
 		panic(fmt.Sprintf("Failed to read one byte at offset %d", offset))
 	}
 	return bytes[0]
 }
 
-func readU32(reader *os.File) uint32 {
+func readU32(file *os.File) uint32 {
 	bytes := make([]byte, 4)
-	len, err := reader.Read(bytes)
+	len, err := file.Read(bytes)
 	check(err)
 	if len != 4 {
-		offset := getCurrentOffset(reader)
+		offset := getCurrentOffset(file)
 		panic(fmt.Sprintf("Failed to read four bytes at offset %d", offset))
 	}
 	return binary.BigEndian.Uint32(bytes)
 }
 
-func read7BitEncodedInt(reader *os.File) int {
+func read7BitEncodedInt(file *os.File) int {
 	var num int = 0
-	bits := int(readU8(reader))
+	bits := int(readU8(file))
 	num = (num << 7) + (bits & 0x7f)
 	for bits&0x80 != 0 {
-		bits = int(readU8(reader))
+		bits = int(readU8(file))
 		num = (num << 7) + (bits & 0x7f)
 	}
 	return num
