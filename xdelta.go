@@ -82,7 +82,7 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 
 	headerEndOffset := getCurrentOffset(patch)
 
-	//calculate target file size
+	// Calculate target file size
 	newFileSize := 0
 	for !isEOF(patch) {
 		winHeader := decodeWindowHeader(patch)
@@ -91,7 +91,6 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 		_, err := patch.Seek(length, io.SeekCurrent)
 		check(err)
 	}
-	fmt.Printf("New file size %d\n", newFileSize)
 
 	patch.Seek(int64(headerEndOffset), io.SeekStart)
 
@@ -99,8 +98,8 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 	codeTable := getDefaultCodeTable()
 	targetWindowPosition := 0
 
+	// Loop over xdelta windows
 	for !isEOF(patch) {
-		fmt.Println("### NEW WINDOW ###")
 		winHeader := decodeWindowHeader(patch)
 
 		addRunDataStream, err := os.Open(patchPath)
@@ -123,8 +122,9 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 
 		addressesStreamEndOffset := getCurrentOffset(addressesStream)
 
+		// Loop over instructions
 		for getCurrentOffset(instructionsStream) < addressesStreamEndOffset {
-			fmt.Printf("Instruction %d / %d\n", getCurrentOffset(instructionsStream), addressesStreamEndOffset)
+			//fmt.Printf("Instruction %d / %d\n", getCurrentOffset(instructionsStream), addressesStreamEndOffset)
 			instructionIndex := readU8(instructionsStream)
 
 			for i := 0; i < 2; i++ {
@@ -136,54 +136,62 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 				}
 
 				if instruction.codeType == VCD_NOOP {
-					fmt.Println("VCD_NOOP")
+					//fmt.Println("VCD_NOOP")
 					continue
 
 				} else if instruction.codeType == VCD_ADD {
-					fmt.Printf("VCD_ADD (%d)\n", size)
+					//fmt.Printf("VCD_ADD (%d)\n", size)
 					copyToFile2(addRunDataStream, scon4, addRunDataIndex+targetWindowPosition, size)
 					addRunDataIndex += size
 
 				} else if instruction.codeType == VCD_COPY {
-					fmt.Printf("VCD_COPY (%d)\n", size)
+					//fmt.Printf("VCD_COPY (%d)\n", size)
 					var addr = decodeAddress(&cache, addRunDataIndex+winHeader.sourceLength, instruction.mode)
 					var absAddr = 0
 
-					// source segment and target segment are treated as if they're concatenated
 					var sourceData *os.File
 					if addr < winHeader.sourceLength {
 						absAddr = winHeader.sourcePosition + addr
-						fmt.Printf("  absAddr = %d\n", absAddr)
+						//fmt.Printf("  absAddr = %d\n", absAddr)
 						if winHeader.indicator&VCD_SOURCE != 0 {
-							fmt.Println("  VCD_SOURCE")
+							//fmt.Println("  VCD_SOURCE")
 							sourceData = gnt4
 						} else if winHeader.indicator&VCD_TARGET != 0 {
-							fmt.Println("  VCD_TARGET")
+							//fmt.Println("  VCD_TARGET")
 							sourceData = scon4
 						}
 					} else {
 						absAddr = targetWindowPosition + (addr - winHeader.sourceLength)
-						fmt.Printf("  absAddr = %d\n", absAddr)
+						//fmt.Printf("  absAddr = %d\n", absAddr)
 						sourceData = scon4
 					}
 
-					// TODO: This currently handles repeating bytes that have just been written by this loop
-					//       Ideally, we would buffer it so that we don't have to continue doing reads and
-					//       can write it all at once.
-					buff := make([]byte, 1)
-					for size > 0 {
-						size--
-						sourceData.ReadAt(buff, int64(absAddr))
-						scon4.WriteAt(buff, int64(targetWindowPosition+addRunDataIndex))
-						addRunDataIndex++
-						absAddr++
+					distance := (targetWindowPosition + addRunDataIndex) - absAddr
+					if sourceData == scon4 && size > distance {
+						// Slow copy that can handle overlap of reading and writing targets
+						// This functionality is usually used to create repeating byte sequences in the target
+						// It's slow because it reads and writes one byte at a time
+						buff := make([]byte, 1)
+						for size > 0 {
+							size--
+							sourceData.ReadAt(buff, int64(absAddr))
+							scon4.WriteAt(buff, int64(targetWindowPosition+addRunDataIndex))
+							addRunDataIndex++
+							absAddr++
+						}
 					}
+					// No overlap, fast copy
+					buff := make([]byte, size)
+					sourceData.ReadAt(buff, int64(absAddr))
+					scon4.WriteAt(buff, int64(targetWindowPosition+addRunDataIndex))
+					addRunDataIndex += size
+					absAddr += size
 
 				} else if instruction.codeType == VCD_RUN {
-					fmt.Printf("VCD_RUN (%d)\n", size)
+					//fmt.Printf("VCD_RUN (%d)\n", size)
 					runByte := readU8(addRunDataStream)
 					offset := targetWindowPosition + addRunDataIndex
-					fmt.Printf("  runByte = %d offset = %d\n", runByte, offset)
+					//fmt.Printf("  runByte = %d offset = %d\n", runByte, offset)
 					buffer := make([]byte, size)
 					for i := range buffer {
 						buffer[i] = runByte
@@ -192,12 +200,12 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 
 					addRunDataIndex += size
 				} else {
-					panic("invalid instruction type found")
+					panic("Invalid instruction type found")
 				}
 			}
 		}
 
-		fmt.Println("Check CRC")
+		//fmt.Println("Check CRC")
 		if validate && winHeader.hasAdler32 {
 			current := adler32(scon4, targetWindowPosition, winHeader.targetWindowLength)
 			if winHeader.adler32 != current {
@@ -207,7 +215,7 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 
 		patch.Seek(int64(winHeader.addRunDataLength+winHeader.addressesLength+winHeader.instructionsLength), io.SeekCurrent)
 		targetWindowPosition += winHeader.targetWindowLength
-		fmt.Printf("Updated position to %d\n", targetWindowPosition)
+		fmt.Printf("Window processed: 0x%X / 0x%X\n", targetWindowPosition, newFileSize)
 	}
 }
 
@@ -369,7 +377,7 @@ func parseHeader(reader *os.File) {
 		check(err)
 
 		if secondaryDecompressorId[0] != 0 {
-			panic("not implemented: secondary decompressor")
+			panic("Not implemented: secondary decompressor")
 		}
 	}
 
@@ -378,7 +386,7 @@ func parseHeader(reader *os.File) {
 		codeTableDataLength := read7BitEncodedInt(reader)
 
 		if codeTableDataLength != 0 {
-			panic("not implemented: custom code table")
+			panic("Not implemented: custom code table")
 		}
 	}
 

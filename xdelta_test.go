@@ -7,11 +7,11 @@ import (
 	"testing"
 )
 
-func TestSimpleDelta(t *testing.T) {
-	inputPath := "test/SimpleDelta/input.txt"
-	outputPath := "test/SimpleDelta/output.txt"
-	tempPath := "test/SimpleDelta/temp.txt"
-	patchPath := "test/SimpleDelta/patch.xdelta"
+func TestTextDelta(t *testing.T) {
+	inputPath := "test/TextDelta/input.txt"
+	outputPath := "test/TextDelta/output.txt"
+	tempPath := "test/TextDelta/temp.txt"
+	patchPath := "test/TextDelta/patch.xdelta"
 
 	os.Remove(tempPath)
 	patchWithXdelta(inputPath, tempPath, patchPath, true)
@@ -26,30 +26,11 @@ func TestSimpleDelta(t *testing.T) {
 	os.Remove(tempPath)
 }
 
-func TestImageBigDifferenceDelta(t *testing.T) {
-	inputPath := "test/ImageBigDifferenceDelta/input.jpg"
-	outputPath := "test/ImageBigDifferenceDelta/output.jpg"
-	tempPath := "test/ImageBigDifferenceDelta/temp.jpg"
-	patchPath := "test/ImageBigDifferenceDelta/patch.xdelta"
-
-	os.Remove(tempPath)
-	patchWithXdelta(inputPath, tempPath, patchPath, true)
-
-	if exists(tempPath) && getFileSize(tempPath) > 0 {
-		if !filesEqual(outputPath, tempPath) {
-			t.Fatalf("Files are not equal: %s and %s", outputPath, tempPath)
-		}
-	} else {
-		t.Fatalf("Test output does not exist: %s", tempPath)
-	}
-	os.Remove(tempPath)
-}
-
-func TestImageBigDifferenceSmallWindowDelta(t *testing.T) {
-	inputPath := "test/ImageBigDifferenceDelta/input.jpg"
-	outputPath := "test/ImageBigDifferenceDelta/output.jpg"
-	tempPath := "test/ImageBigDifferenceDelta/temp2.jpg"
-	patchPath := "test/ImageBigDifferenceDelta/patch_small_window.xdelta"
+func TestImageDelta(t *testing.T) {
+	inputPath := "test/ImageDelta/input.jpg"
+	outputPath := "test/ImageDelta/output.jpg"
+	tempPath := "test/ImageDelta/temp.jpg"
+	patchPath := "test/ImageDelta/patch.xdelta"
 
 	os.Remove(tempPath)
 	patchWithXdelta(inputPath, tempPath, patchPath, true)
