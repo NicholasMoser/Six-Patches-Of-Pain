@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/cheggaaa/pb/v3"
 )
 
 // hdrIndicator
@@ -64,7 +66,6 @@ type AddressCache struct {
 }
 
 func patchWithXdelta(inputPath string, outputPath string, patchPath string, validate bool) {
-	fmt.Println("Patching with xdelta...")
 
 	input, err := os.Open(inputPath)
 	check(err)
@@ -91,6 +92,11 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 		_, err := patch.Seek(length, io.SeekCurrent)
 		check(err)
 	}
+
+	// Create progress bar
+	bar := pb.StartNew(newFileSize)
+	bar.Set(pb.Bytes, true)
+	bar.Set(pb.SIBytesPrefix, true)
 
 	patch.Seek(int64(headerEndOffset), io.SeekStart)
 
@@ -215,8 +221,10 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 
 		patch.Seek(int64(winHeader.addRunDataLength+winHeader.addressesLength+winHeader.instructionsLength), io.SeekCurrent)
 		targetWindowPosition += winHeader.targetWindowLength
-		fmt.Printf("Window processed: 0x%X / 0x%X\n", targetWindowPosition, newFileSize)
+		//fmt.Printf("Window processed: 0x%X / 0x%X\n", targetWindowPosition, newFileSize)
+		bar.SetCurrent(int64(targetWindowPosition))
 	}
+	bar.Finish()
 }
 
 func copyToFile2(stream *os.File, output *os.File, targetOffset int, len int) {
