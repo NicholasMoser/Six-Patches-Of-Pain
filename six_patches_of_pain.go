@@ -320,7 +320,11 @@ func downloadSpecificVersion() string {
 func patchGNT4(gnt4Iso string, scon4Iso string) {
 	fmt.Println("Patching GNT4...")
 
-	patchWithXdelta(gnt4Iso, scon4Iso, PatchFile, true)
+	input, err := os.Open(gnt4Iso)
+	check(err)
+	defer input.Close()
+
+	patchWithXdelta(input, scon4Iso, PatchFile, true)
 
 	if exists(scon4Iso) && getFileSize(scon4Iso) > 0 {
 		isoFullPath, err := filepath.Abs(scon4Iso)

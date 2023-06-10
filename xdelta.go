@@ -65,11 +65,10 @@ type AddressCache struct {
 	same          []int
 }
 
-func patchWithXdelta(inputPath string, outputPath string, patchPath string, validate bool) {
-
-	input, err := os.Open(inputPath)
-	check(err)
-	defer input.Close()
+// Convert an input into and output with a patch. Validate each chunk via checksums if desired.
+// The input is a io.ReadSeeker to allow either bytes or a file to be used, since we may
+// need to convert bytes in-memory before we call this method.
+func patchWithXdelta(input io.ReadSeeker, outputPath string, patchPath string, validate bool) {
 
 	output, err := os.OpenFile(outputPath, os.O_RDWR|os.O_CREATE, 0644)
 	check(err)
@@ -155,7 +154,7 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 					var addr = decodeAddress(&cache, addRunDataIndex+winHeader.sourceLength, instruction.mode)
 					var absAddr = 0
 
-					var sourceData *os.File
+					var sourceData io.ReadSeeker
 					if addr < winHeader.sourceLength {
 						absAddr = winHeader.sourcePosition + addr
 						//fmt.Printf("  absAddr = %d\n", absAddr)
@@ -178,20 +177,23 @@ func patchWithXdelta(inputPath string, outputPath string, patchPath string, vali
 						// This functionality is usually used to create repeating byte sequences in the target
 						// It's slow because it reads and writes one byte at a time
 						buff := make([]byte, 1)
+						sourceData.Seek(int64(absAddr), io.SeekStart)
 						for size > 0 {
 							size--
-							sourceData.ReadAt(buff, int64(absAddr))
+							sourceData.Read(buff)
 							output.WriteAt(buff, int64(targetWindowPosition+addRunDataIndex))
 							addRunDataIndex++
 							absAddr++
 						}
+					} else {
+						// No overlap, fast copy
+						buff := make([]byte, size)
+						sourceData.Seek(int64(absAddr), io.SeekStart)
+						sourceData.Read(buff)
+						output.WriteAt(buff, int64(targetWindowPosition+addRunDataIndex))
+						addRunDataIndex += size
+						absAddr += size
 					}
-					// No overlap, fast copy
-					buff := make([]byte, size)
-					sourceData.ReadAt(buff, int64(absAddr))
-					output.WriteAt(buff, int64(targetWindowPosition+addRunDataIndex))
-					addRunDataIndex += size
-					absAddr += size
 
 				} else if instruction.codeType == VCD_RUN {
 					//fmt.Printf("VCD_RUN (%d)\n", size)

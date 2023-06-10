@@ -13,8 +13,12 @@ func TestTextDelta(t *testing.T) {
 	tempPath := "test/TextDelta/temp.txt"
 	patchPath := "test/TextDelta/patch.xdelta"
 
+	input, err := os.Open(inputPath)
+	check(err)
+	defer input.Close()
+
 	os.Remove(tempPath)
-	patchWithXdelta(inputPath, tempPath, patchPath, true)
+	patchWithXdelta(input, tempPath, patchPath, true)
 
 	if exists(tempPath) && getFileSize(tempPath) > 0 {
 		if !filesEqual(outputPath, tempPath) {
@@ -32,8 +36,12 @@ func TestImageDelta(t *testing.T) {
 	tempPath := "test/ImageDelta/temp.jpg"
 	patchPath := "test/ImageDelta/patch.xdelta"
 
+	input, err := os.Open(inputPath)
+	check(err)
+	defer input.Close()
+
 	os.Remove(tempPath)
-	patchWithXdelta(inputPath, tempPath, patchPath, true)
+	patchWithXdelta(input, tempPath, patchPath, true)
 
 	if exists(tempPath) && getFileSize(tempPath) > 0 {
 		if !filesEqual(outputPath, tempPath) {
