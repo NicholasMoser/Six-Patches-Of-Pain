@@ -53,6 +53,29 @@ func TestImageDelta(t *testing.T) {
 	os.Remove(tempPath)
 }
 
+func TestBinaryDeltaWithMultipleWindows(t *testing.T) {
+	inputPath := "test/BinaryDelta/DAT.Texture.Wizard.-.v6.1.3.x64.zip"
+	outputPath := "test/BinaryDelta/DAT.Texture.Wizard.-.v6.1.4.x64.zip"
+	tempPath := "test/BinaryDelta/temp.zip"
+	patchPath := "test/BinaryDelta/patch.xdelta"
+
+	input, err := os.Open(inputPath)
+	check(err)
+	defer input.Close()
+
+	os.Remove(tempPath)
+	patchWithXdelta(input, tempPath, patchPath, true)
+
+	if exists(tempPath) && getFileSize(tempPath) > 0 {
+		if !filesEqual(outputPath, tempPath) {
+			t.Fatalf("Files are not equal: %s and %s", outputPath, tempPath)
+		}
+	} else {
+		t.Fatalf("Test output does not exist: %s", tempPath)
+	}
+	os.Remove(tempPath)
+}
+
 func TestAdler32(t *testing.T) {
 	if _adler32([]byte{0, 0}) != 0x00020001 {
 		t.Fatal("Failed adler32 comparison")
