@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -20,6 +21,12 @@ import (
 
 	"github.com/cheggaaa/pb/v3"
 )
+
+type Iso struct {
+	filePath string
+	bytes    []byte
+	isFile   bool
+}
 
 // DATA folder for data files
 var DATA = "data"
@@ -61,7 +68,7 @@ var LinuxExecutableName = "Six-Patches-Of-Pain"
 var ExecutableName string
 
 func main() {
-	version := "1.2.1"
+	version := "2.0.0"
 	fmt.Printf("Starting Six Patches of Pain %s....\n", version)
 	fmt.Println()
 	argParse()
@@ -132,50 +139,73 @@ func verifyIntegrity() {
 }
 
 // Retrieves the vanilla GNT4 iso to patch against.
-func getGNT4ISO() string {
+func getGNT4ISO() Iso {
 	// First, check if it was drag and dropped onto the executable or provided as an arg
 	if len(os.Args) == 2 && !argSpecificVersion {
 		var draggedPath = os.Args[1]
 		if exists(draggedPath) {
-			if isGNT4(draggedPath) {
+			isGNT4, isoBytes := isGNT4(draggedPath)
+			if isGNT4 {
 				setGNT4ISOPath(draggedPath)
-				return draggedPath
+				if isoBytes != nil {
+					return Iso{bytes: isoBytes, isFile: false}
+				}
+				return Iso{filePath: draggedPath, isFile: true}
 			}
 			fmt.Println("Provided file is not a vanilla GNT4 ISO: " + draggedPath)
 		} else {
-			fmt.Println("Provided path is not valid: " + draggedPath)
+			fmt.Println("Provided file does not exist: " + draggedPath)
 		}
 	}
 	// Then look for if it was provided as a named arg
 	isoPath := argISOPath
 	if exists(isoPath) {
-		return isoPath
+		// If you're using this method, we can hopefully assume it will be a correct vanilla ISO
+		return Iso{filePath: isoPath, isFile: true}
 	}
 	// Then look for the ISO in GNT4_ISO_PATH
 	if exists(GNT4ISOPath) {
 		isoPath := readFile(GNT4ISOPath)
 		if exists(isoPath) {
-			return isoPath
+			isGNT4, isoBytes := isGNT4(isoPath)
+			if isGNT4 {
+				if isoBytes != nil {
+					return Iso{bytes: isoBytes, isFile: false}
+				}
+				return Iso{filePath: isoPath, isFile: true}
+			} else {
+				fmt.Println("GNT4_ISO_PATH iso is not a vanilla GNT4 ISO: " + isoPath)
+			}
 		}
 	}
 	// If the ISO isn't found from the previous step, look for it recursively in the current directory
-	gnt4Iso := ""
+	var gnt4Iso Iso
+	var gnt4Path string
 	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() && isGNT4(path) {
-			// Found, stop searching by returning EOF
-			gnt4Iso = path
-			return io.EOF
+		if !info.IsDir() {
+			isGNT4, isoBytes := isGNT4(path)
+			if isGNT4 {
+				// Found, stop searching by returning EOF
+				if isoBytes != nil {
+					gnt4Iso = Iso{bytes: isoBytes, isFile: false}
+					gnt4Path = path
+				} else {
+					gnt4Iso = Iso{filePath: isoPath, isFile: true}
+					gnt4Path = path
+				}
+				return io.EOF
+			}
 		}
 		return nil
 	})
 	if err != io.EOF {
 		check(err)
 	}
-	if gnt4Iso != "" {
-		setGNT4ISOPath(gnt4Iso)
+	if gnt4Iso.bytes != nil || gnt4Iso.filePath != "" {
+		setGNT4ISOPath(gnt4Path)
 		return gnt4Iso
 	}
 	// Last resort, query the user for the location of the ISO
@@ -192,9 +222,13 @@ func getGNT4ISO() string {
 		fmt.Scanln(&input)
 		if exists(input) {
 			// Local file
-			if isGNT4(input) {
+			isGNT4, isoBytes := isGNT4(input)
+			if isGNT4 {
 				setGNT4ISOPath(input)
-				return input
+				if isoBytes != nil {
+					return Iso{bytes: isoBytes, isFile: false}
+				}
+				return Iso{filePath: input, isFile: true}
 			}
 			fmt.Printf("\nERROR: %s is not a clean vanilla GNT4 ISO\n\n", input)
 		} else {
@@ -207,9 +241,13 @@ func getGNT4ISO() string {
 				}
 			} else {
 				if exists(GNT4ISO) {
-					if isGNT4(GNT4ISO) {
+					isGNT4, isoBytes := isGNT4(GNT4ISO)
+					if isGNT4 {
 						setGNT4ISOPath(GNT4ISO)
-						return GNT4ISO
+						if isoBytes != nil {
+							return Iso{bytes: isoBytes, isFile: false}
+						}
+						return Iso{filePath: GNT4ISO, isFile: true}
 					}
 					fmt.Printf("\nERROR: Downloaded file was not a vanilla GNT4 ISO.\n\n")
 					os.Remove(GNT4ISO)
@@ -217,7 +255,7 @@ func getGNT4ISO() string {
 			}
 		}
 	}
-	return ""
+	return Iso{filePath: "", isFile: true}
 }
 
 // Download a new release if it exists and return the version name.
@@ -317,14 +355,20 @@ func downloadSpecificVersion() string {
 }
 
 // Patches the given GNT4 ISO to the output SCON4 ISO path using the downloaded patch.
-func patchGNT4(gnt4Iso string, scon4Iso string) {
+func patchGNT4(gnt4Iso Iso, scon4Iso string) {
 	fmt.Println("Patching GNT4...")
 
-	input, err := os.Open(gnt4Iso)
-	check(err)
-	defer input.Close()
-
-	patchWithXdelta(input, scon4Iso, PatchFile, true)
+	if gnt4Iso.isFile {
+		// Patch from file input
+		input, err := os.Open(gnt4Iso.filePath)
+		check(err)
+		defer input.Close()
+		patchWithXdelta(input, scon4Iso, PatchFile, true)
+	} else {
+		// Patch from bytes input
+		input := bytes.NewReader(gnt4Iso.bytes)
+		patchWithXdelta(input, scon4Iso, PatchFile, true)
+	}
 
 	if exists(scon4Iso) && getFileSize(scon4Iso) > 0 {
 		isoFullPath, err := filepath.Abs(scon4Iso)
@@ -337,7 +381,7 @@ func patchGNT4(gnt4Iso string, scon4Iso string) {
 }
 
 // Returns whether or not the given file path is vanilla GNT4.
-func isGNT4(filePath string) bool {
+func isGNT4(filePath string) (bool, []byte) {
 	if strings.HasSuffix(strings.ToLower(filePath), ".iso") || strings.HasSuffix(strings.ToLower(filePath), ".ciso") {
 		f, err := os.Open(filePath)
 		check(err)
@@ -359,17 +403,9 @@ func isGNT4(filePath string) bool {
 					// This is an Nkit ISO, but we currently use a "bad" ISO dump instead.
 					// The bad dump is superior as it pads with zeroes instead of random bytes.
 					// Confirm the user is okay with modifying their Nkit to be a bad dump.
-					fmt.Println("\nNkit ISOs must be modified in order to be used for this auto updater.")
-					fmt.Println("Please press enter if you are okay with this nkit being covnerted to a normal ISO.")
-					fmt.Println("If you are not okay with this nkit being modified, please exit this application.")
-					fmt.Println("\nFor more information, see the following information:")
-					fmt.Println("https://github.com/NicholasMoser/Six-Patches-Of-Pain#why-can-i-not-use-nkit")
-					fmt.Println("\nPress enter to continue...")
-					var output string
-					fmt.Scanln(&output)
-					convertNkitToIso(filePath)
-					fmt.Println("\nISO has been created and is now valid.")
-					return true
+					isoBytes := convertNkitToIso(filePath)
+					fmt.Println("\nNkit successfully converted to ISO.")
+					return true, isoBytes
 				} else {
 					// This is a good ISO dump, but we currently use a "bad" dump instead.
 					// The bad dump is superior as it pads with zeroes instead of random bytes.
@@ -385,7 +421,7 @@ func isGNT4(filePath string) bool {
 					err = patchGoodDump(filePath)
 					fmt.Println("\nISO has been modified and is now valid.")
 					check(err)
-					return true
+					return true, nil
 				}
 			} else if hashValue == "0371b18c" {
 				// 0371b18c is the CRC32 hash of a ciso file, so we must first convert it to an ISO
@@ -401,12 +437,12 @@ func isGNT4(filePath string) bool {
 				err = patchCISO(filePath)
 				fmt.Println("\nCISO has been modified and is now valid.")
 				check(err)
-				return true
+				return true, nil
 			}
-			return hashValue == "55ee8b1a"
+			return hashValue == "55ee8b1a", nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 // Patches a good dump of vanilla GNT4 to be the expected "bad" dump of GNT4
@@ -528,15 +564,12 @@ func isNkit(input string) bool {
 	return reflect.DeepEqual(bytes, []byte{0x4E, 0x4B, 0x49, 0x54}) // NKIT
 }
 
-// Convert a GNT4 nkit.iso file to a GNT4 iso file
-func convertNkitToIso(input string) {
+// Convert a GNT4 nkit.iso file to a GNT4 iso and return the bytes
+func convertNkitToIso(input string) []byte {
 	fmt.Println("Converting GNT4 nkit to iso...")
 
-	// Create temp file
-	temp, err := os.CreateTemp("", "example")
-	check(err)
-	defer os.Remove(temp.Name())
-	fmt.Println(temp.Name())
+	// Create byte slice
+	isoBytes := make([]byte, 0x57058000)
 
 	// Read sys bytes
 	in, err := os.OpenFile(input, os.O_RDWR, 0644)
@@ -546,13 +579,11 @@ func convertNkitToIso(input string) {
 	check(err)
 
 	// Write sys bytes
-	_, err = temp.Write(sys)
-	check(err)
+	copy(isoBytes[:], sys)
 
 	// Fix sys bytes
-	_, err = temp.WriteAt(make([]byte, 0x14), 0x200)
-	check(err)
-	_, err = temp.WriteAt([]byte{0x00, 0x52, 0x02, 0x02}, 0x500)
+	copy(isoBytes[0x200:], make([]byte, 0x14))
+	copy(isoBytes[0x500:], []byte{0x00, 0x52, 0x02, 0x02})
 	check(err)
 
 	// Fix file system table (fst.bin)
@@ -568,11 +599,10 @@ func convertNkitToIso(input string) {
 				new_offset += 0x2B7C
 			}
 			binary.BigEndian.PutUint32(buf, new_offset)
-			_, err = temp.WriteAt(buf, i)
-			check(err)
+			copy(isoBytes[i:], buf)
 		}
 	}
-	_, err = temp.WriteAt(make([]byte, 0x4), 0x2480E8)
+	copy(isoBytes[0x2480E8:], make([]byte, 0x4))
 
 	// Copy the rest of the files over
 	buf_size := 0x4096
@@ -589,8 +619,7 @@ func convertNkitToIso(input string) {
 				// Resize buffer to print last bytes minus padding at end of nkit
 				buf = buf[:num-0x37C]
 			}
-			_, err2 := temp.WriteAt(buf, i+offset)
-			check(err2)
+			copy(isoBytes[i+offset:], buf)
 		}
 		if errors.Is(err1, io.EOF) {
 			break
@@ -605,18 +634,9 @@ func convertNkitToIso(input string) {
 	bar.Finish()
 
 	// Last little bit of cleanup
-	_, err = temp.WriteAt(make([]byte, 0x2), 0x45532B7E)
-	check(err)
+	copy(isoBytes[0x45532B7E:], make([]byte, 0x2))
 
-	// Copy temp file to nkit
-	temp.Seek(0, 0)
-	in.Seek(0, 0)
-	fmt.Println("Copying temp output back to nkit...")
-	bar2 := pb.Full.Start64(0x57058000)
-	defer bar2.Finish()
-	barReader := bar2.NewProxyReader(temp)
-	_, err = io.Copy(in, barReader)
-	check(err)
+	return isoBytes
 }
 
 // Download to a file path the file at the given url.
