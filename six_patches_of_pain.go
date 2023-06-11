@@ -410,34 +410,16 @@ func isGNT4(filePath string) (bool, []byte) {
 					// This is a good ISO dump, but we currently use a "bad" dump instead.
 					// The bad dump is superior as it pads with zeroes instead of random bytes.
 					// Confirm the user is okay with modifying their good dump to be a bad dump.
-					fmt.Println("\nThe vanilla ISO you provided must be modified in order to be used for this auto updater.")
-					fmt.Println("Please press enter if you are okay with this ISO being modified.")
-					fmt.Println("If you are not okay with this ISO being modified, please exit this application.")
-					fmt.Println("\nFor more information, see the following information:")
-					fmt.Println("https://github.com/NicholasMoser/Six-Patches-Of-Pain#why-does-it-say-my-vanilla-iso-needs-to-be-modified")
-					fmt.Println("\nPress enter to continue...")
-					var output string
-					fmt.Scanln(&output)
-					err = patchGoodDump(filePath)
-					fmt.Println("\nISO has been modified and is now valid.")
-					check(err)
-					return true, nil
+					isoBytes := patchGoodDump(filePath)
+					fmt.Println("\nGood dump successfully converted to ISO.")
+					return true, isoBytes
 				}
 			} else if hashValue == "0371b18c" {
 				// 0371b18c is the CRC32 hash of a ciso file, so we must first convert it to an ISO
 				// Confirm the user is okay with modifying their ciso to be an ISO
-				fmt.Println("\nThe vanilla CISO you provided must be modified in order to be used for this auto updater.")
-				fmt.Println("Please press enter if you are okay with this CISO being modified.")
-				fmt.Println("If you are not okay with this CISO being modified, please exit this application.")
-				fmt.Println("\nFor more information, see the following information:")
-				fmt.Println("https://github.com/NicholasMoser/Six-Patches-Of-Pain#why-can-i-not-use-ciso")
-				fmt.Println("\nPress enter to continue...")
-				var output string
-				fmt.Scanln(&output)
-				err = patchCISO(filePath)
-				fmt.Println("\nCISO has been modified and is now valid.")
-				check(err)
-				return true, nil
+				isoBytes := patchCISO(filePath)
+				fmt.Println("\nCISO successfully converted to ISO.")
+				return true, isoBytes
 			}
 			return hashValue == "55ee8b1a", nil
 		}
@@ -446,48 +428,38 @@ func isGNT4(filePath string) (bool, []byte) {
 }
 
 // Patches a good dump of vanilla GNT4 to be the expected "bad" dump of GNT4
-func patchGoodDump(filePath string) error {
-	file, err := os.OpenFile(filePath, os.O_WRONLY, 0644)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
+func patchGoodDump(filePath string) []byte {
+
+	// Read original bytes
+	isoBytes, err := os.ReadFile(filePath)
+	check(err)
+
 	// First write this weird four byte word to bi2.bin
-	_, err = file.WriteAt([]byte{0x00, 0x52, 0x02, 0x02}, 0x500)
-	if err != nil {
-		return err
-	}
+	copy(isoBytes[500:], []byte{0x00, 0x52, 0x02, 0x02})
+
 	var zeroes [4096]byte
 	// There are random padding bytes from 0x248104 to 0xC4F8000 (0xC2AFEFC bytes).
 	// Replace them with zeroes by looping 49839 times. Then add 3836 extra zeroes.
 	for i := 0; i < 49839; i++ {
 		offset := 0x248104 + (i * 4096)
-		_, err := file.WriteAt(zeroes[:], int64(offset))
-		if err != nil {
-			return err
-		}
+		copy(isoBytes[int64(offset):], zeroes[:])
 	}
 	var moreZeroes [3836]byte
-	_, err = file.WriteAt(moreZeroes[:], 0xC4F7104)
-	if err != nil {
-		return err
-	}
+	copy(isoBytes[0xC4F7104:], moreZeroes[:])
+
 	var evenMoreZeroes [11108]byte
 	// There are random padding bytes from 0x4553001C - 0x45532B7F (0x2B63 bytes).
 	// Just add 11108 zeroes directly.
-	_, err = file.WriteAt(evenMoreZeroes[:], 0x4553001C)
-	return err
+	copy(isoBytes[0x4553001C:], evenMoreZeroes[:])
+
+	return isoBytes
 }
 
 // Patches a CISO of vanilla GNT4 to be the expected "bad" dump of GNT4
-func patchCISO(filePath string) error {
-	fmt.Println("Converting GNT4 CISO to ISO...")
+func patchCISO(filePath string) []byte {
 
-	// Create temp file
-	temp, err := os.CreateTemp("", "example")
-	check(err)
-	defer os.Remove(temp.Name())
-	fmt.Println(temp.Name())
+	// Create byte slice
+	isoBytes := make([]byte, 0x57058000)
 
 	// Read sys bytes
 	in, err := os.OpenFile(filePath, os.O_RDWR, 0644)
@@ -498,14 +470,11 @@ func patchCISO(filePath string) error {
 	check(err)
 
 	// Write sys bytes
-	_, err = temp.Write(sys)
-	check(err)
+	copy(isoBytes, sys)
 
 	// Fix sys bytes
-	_, err = temp.WriteAt(make([]byte, 0x14), 0x200)
-	check(err)
-	_, err = temp.WriteAt([]byte{0x00, 0x52, 0x02, 0x02}, 0x500)
-	check(err)
+	copy(isoBytes[0x200:], make([]byte, 0x14))
+	copy(isoBytes[0x500:], []byte{0x00, 0x52, 0x02, 0x02})
 
 	// Copy the rest of the files over
 	buf_size := 0x4096
@@ -522,13 +491,11 @@ func patchCISO(filePath string) error {
 			buf = make([]byte, 0x3CAA)
 			_, err := in.ReadAt(buf, i)
 			check(err)
-			_, err2 := temp.WriteAt(buf, i+offset)
-			check(err2)
+			copy(isoBytes[i+offset:], buf)
 			break
 		}
 		if num > 0 {
-			_, err2 := temp.WriteAt(buf, i+offset)
-			check(err2)
+			copy(isoBytes[i+offset:], buf)
 		}
 		i += int64(buf_size)
 		bar.Increment()
@@ -538,19 +505,9 @@ func patchCISO(filePath string) error {
 	var evenMoreZeroes [11108]byte
 	// There are random padding bytes from 0x4553001C - 0x45532B7F (0x2B63 bytes).
 	// Just add 11108 zeroes directly.
-	_, err = temp.WriteAt(evenMoreZeroes[:], 0x4553001C)
+	copy(isoBytes[0x4553001C:], evenMoreZeroes[:])
 
-	// Copy temp file to ciso
-	temp.Seek(0, 0)
-	in.Seek(0, 0)
-	fmt.Println("Copying temp output back to ciso...")
-	bar2 := pb.Full.Start64(0x57058000)
-	defer bar2.Finish()
-	barReader := bar2.NewProxyReader(temp)
-	_, err = io.Copy(in, barReader)
-	check(err)
-
-	return err
+	return isoBytes
 }
 
 // Check if an ISO is an nkit ISO
@@ -566,7 +523,6 @@ func isNkit(input string) bool {
 
 // Convert a GNT4 nkit.iso file to a GNT4 iso and return the bytes
 func convertNkitToIso(input string) []byte {
-	fmt.Println("Converting GNT4 nkit to iso...")
 
 	// Create byte slice
 	isoBytes := make([]byte, 0x57058000)
