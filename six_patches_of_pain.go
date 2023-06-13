@@ -300,7 +300,7 @@ func downloadNewVersion() string {
 		fail()
 	}
 	downloadURL := assets[0].(map[string]interface{})["browser_download_url"].(string)
-	fmt.Println("There is a new version of SCON4 available: " + latestVersion)
+	fmt.Println("\nThere is a new version of SCON4 available: " + latestVersion)
 	fmt.Println("Downloading: " + latestVersion)
 	download(downloadURL, PatchFile)
 	return latestVersion
@@ -356,7 +356,7 @@ func downloadSpecificVersion() string {
 
 // Patches the given GNT4 ISO to the output SCON4 ISO path using the downloaded patch.
 func patchGNT4(gnt4Iso Iso, scon4Iso string) {
-	fmt.Println("Patching GNT4...")
+	fmt.Println("\nPatching GNT4...")
 
 	if gnt4Iso.isFile {
 		// Patch from file input
@@ -373,9 +373,9 @@ func patchGNT4(gnt4Iso Iso, scon4Iso string) {
 	if exists(scon4Iso) && getFileSize(scon4Iso) > 0 {
 		isoFullPath, err := filepath.Abs(scon4Iso)
 		check(err)
-		fmt.Println("Patching complete. Saved to " + isoFullPath)
+		fmt.Println("\nPatching complete. Saved to " + isoFullPath)
 	} else {
-		fmt.Println("Failed to patch ISO, see above messages for more info.")
+		fmt.Println("\nFailed to patch ISO, see above messages for more info.")
 		exit(1)
 	}
 }
@@ -394,7 +394,6 @@ func isGNT4(filePath string) (bool, []byte) {
 		if reflect.DeepEqual(expected, data[:len]) || reflect.DeepEqual(cisoExpected, data[:len]) {
 			fmt.Println("Validating GNT4 ISO is not modified...")
 			hashValue, err := hashFile(filePath)
-			fmt.Println(hashValue)
 			check(err)
 			// 60aefa3e is the CRC32 hash of both a good ISO dump AND an Nkit ISO somehow
 			// Check whether this file is an ISO or an Nkit
@@ -403,22 +402,22 @@ func isGNT4(filePath string) (bool, []byte) {
 					// This is an Nkit ISO, but we currently use a "bad" ISO dump instead.
 					// The bad dump is superior as it pads with zeroes instead of random bytes.
 					// Confirm the user is okay with modifying their Nkit to be a bad dump.
+					fmt.Println("\nConverting NKIT to ISO...")
 					isoBytes := convertNkitToIso(filePath)
-					fmt.Println("\nNkit successfully converted to ISO.")
 					return true, isoBytes
 				} else {
 					// This is a good ISO dump, but we currently use a "bad" dump instead.
 					// The bad dump is superior as it pads with zeroes instead of random bytes.
 					// Confirm the user is okay with modifying their good dump to be a bad dump.
+					fmt.Println("\nConverting good dump ISO to bad dump ISO...")
 					isoBytes := patchGoodDump(filePath)
-					fmt.Println("\nGood dump successfully converted to ISO.")
 					return true, isoBytes
 				}
 			} else if hashValue == "0371b18c" {
 				// 0371b18c is the CRC32 hash of a ciso file, so we must first convert it to an ISO
 				// Confirm the user is okay with modifying their ciso to be an ISO
+				fmt.Println("\nConverting CISO to ISO...")
 				isoBytes := patchCISO(filePath)
-				fmt.Println("\nCISO successfully converted to ISO.")
 				return true, isoBytes
 			}
 			return hashValue == "55ee8b1a", nil
@@ -435,7 +434,7 @@ func patchGoodDump(filePath string) []byte {
 	check(err)
 
 	// First write this weird four byte word to bi2.bin
-	copy(isoBytes[500:], []byte{0x00, 0x52, 0x02, 0x02})
+	copy(isoBytes[0x500:], []byte{0x00, 0x52, 0x02, 0x02})
 
 	var zeroes [4096]byte
 	// There are random padding bytes from 0x248104 to 0xC4F8000 (0xC2AFEFC bytes).
@@ -483,6 +482,8 @@ func patchCISO(filePath string) []byte {
 	offset := int64(0xBFF8000)
 	iterations := 0x4AB5D800 / buf_size
 	bar := pb.StartNew(iterations)
+	bar.Set(pb.Bytes, true)
+	bar.Set(pb.SIBytesPrefix, true)
 	for {
 		num, err := in.ReadAt(buf, i)
 		check(err)
@@ -567,6 +568,8 @@ func convertNkitToIso(input string) []byte {
 	offset := int64(0xC2A8000)
 	iterations := 0x4AB5D800 / buf_size
 	bar := pb.StartNew(iterations)
+	bar.Set(pb.Bytes, true)
+	bar.Set(pb.SIBytesPrefix, true)
 	for {
 		num, err1 := in.ReadAt(buf, i)
 		// Need to write out bytes before EOF check since you can have both EOF and bytes read
@@ -606,6 +609,8 @@ func download(url string, filePath string) error {
 		return errors.New("Unable to download file, status: " + resp.Status)
 	}
 	bar := pb.Full.Start64(resp.ContentLength)
+	bar.Set(pb.Bytes, true)
+	bar.Set(pb.SIBytesPrefix, true)
 	defer bar.Finish()
 	barReader := bar.NewProxyReader(resp.Body)
 	out, err := os.Create(filePath)
@@ -641,6 +646,8 @@ func hashFile(filePath string) (string, error) {
 	}
 	defer file.Close()
 	bar := pb.Full.Start64(fileSize)
+	bar.Set(pb.Bytes, true)
+	bar.Set(pb.SIBytesPrefix, true)
 	defer bar.Finish()
 	barReader := bar.NewProxyReader(file)
 	tablePolynomial := crc32.MakeTable(crc32.IEEE)

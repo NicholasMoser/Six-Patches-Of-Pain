@@ -30,6 +30,29 @@ func TestTextDelta(t *testing.T) {
 	os.Remove(tempPath)
 }
 
+func TestTextDeltaWithByteReader(t *testing.T) {
+	inputPath := "test/TextDelta/input.txt"
+	outputPath := "test/TextDelta/output.txt"
+	tempPath := "test/TextDelta/temp.txt"
+	patchPath := "test/TextDelta/patch.xdelta"
+
+	input, err := os.Open(inputPath)
+	check(err)
+	defer input.Close()
+
+	os.Remove(tempPath)
+	patchWithXdelta(input, tempPath, patchPath, true)
+
+	if exists(tempPath) && getFileSize(tempPath) > 0 {
+		if !filesEqual(outputPath, tempPath) {
+			t.Fatalf("Files are not equal: %s and %s", outputPath, tempPath)
+		}
+	} else {
+		t.Fatalf("Test output does not exist: %s", tempPath)
+	}
+	os.Remove(tempPath)
+}
+
 func TestImageDelta(t *testing.T) {
 	inputPath := "test/ImageDelta/input.jpg"
 	outputPath := "test/ImageDelta/output.jpg"
