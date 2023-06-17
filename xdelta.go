@@ -452,34 +452,34 @@ func decodeWindowHeader(file *os.File) WindowHeader {
 	return windowHeader
 }
 
-func readU8(file *os.File) byte {
+func readU8(reader io.ReadSeeker) byte {
 	bytes := make([]byte, 1)
-	len, err := file.Read(bytes)
+	len, err := reader.Read(bytes)
 	check(err)
 	if len != 1 {
-		offset := getCurrentOffset(file)
+		offset := getCurrentOffset(reader)
 		panic(fmt.Sprintf("Failed to read one byte at offset %d", offset))
 	}
 	return bytes[0]
 }
 
-func readU32(file *os.File) uint32 {
+func readU32(reader io.ReadSeeker) uint32 {
 	bytes := make([]byte, 4)
-	len, err := file.Read(bytes)
+	len, err := reader.Read(bytes)
 	check(err)
 	if len != 4 {
-		offset := getCurrentOffset(file)
+		offset := getCurrentOffset(reader)
 		panic(fmt.Sprintf("Failed to read four bytes at offset %d", offset))
 	}
 	return binary.BigEndian.Uint32(bytes)
 }
 
-func read7BitEncodedInt(file *os.File) int {
+func read7BitEncodedInt(reader io.ReadSeeker) int {
 	var num int = 0
-	bits := int(readU8(file))
+	bits := int(readU8(reader))
 	num = (num << 7) + (bits & 0x7f)
 	for bits&0x80 != 0 {
-		bits = int(readU8(file))
+		bits = int(readU8(reader))
 		num = (num << 7) + (bits & 0x7f)
 	}
 	return num
