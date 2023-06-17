@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/cheggaaa/pb/v3"
-	"github.com/mattetti/filebuffer"
 )
 
 // hdrIndicator
@@ -78,21 +77,18 @@ func patchWithXdelta(input io.ReadSeeker, outputPath string, patchPath string, v
 	patch, err := os.Open(patchPath)
 	check(err)
 	defer patch.Close()
-	patchReader, err := filebuffer.NewFromReader(patch)
-	check(err)
-	defer patchReader.Close()
 
-	parseHeader(patchReader)
+	parseHeader(patch)
 
-	headerEndOffset := getCurrentOffset(patchReader)
+	headerEndOffset := getCurrentOffset(patch)
 
 	// Calculate target file size
 	newFileSize := 0
-	for !isEOF(patchReader) {
-		winHeader := decodeWindowHeader(patchReader)
+	for !isEOF(patch) {
+		winHeader := decodeWindowHeader(patch)
 		newFileSize += winHeader.targetWindowLength
 		length := int64(winHeader.addRunDataLength + winHeader.addressesLength + winHeader.instructionsLength)
-		_, err := patchReader.Seek(length, io.SeekCurrent)
+		_, err := patch.Seek(length, io.SeekCurrent)
 		check(err)
 	}
 
@@ -101,20 +97,20 @@ func patchWithXdelta(input io.ReadSeeker, outputPath string, patchPath string, v
 	bar.Set(pb.Bytes, true)
 	bar.Set(pb.SIBytesPrefix, true)
 
-	patchReader.Seek(int64(headerEndOffset), io.SeekStart)
+	patch.Seek(int64(headerEndOffset), io.SeekStart)
 
 	cache := getVCDAddressCache(4, 3)
 	codeTable := getDefaultCodeTable()
 	targetWindowPosition := 0
 
 	// Loop over xdelta windows
-	for !isEOF(patchReader) {
-		winHeader := decodeWindowHeader(patchReader)
+	for !isEOF(patch) {
+		winHeader := decodeWindowHeader(patch)
 
 		addRunDataStream, err := os.Open(patchPath)
 		check(err)
 		defer addRunDataStream.Close()
-		addRunDataStream.Seek(getCurrentOffset(patchReader), io.SeekStart)
+		addRunDataStream.Seek(getCurrentOffset(patch), io.SeekStart)
 
 		instructionsStream, err := os.Open(patchPath)
 		check(err)
@@ -237,7 +233,7 @@ func patchWithXdelta(input io.ReadSeeker, outputPath string, patchPath string, v
 			}
 		}
 
-		patchReader.Seek(int64(winHeader.addRunDataLength+winHeader.addressesLength+winHeader.instructionsLength), io.SeekCurrent)
+		patch.Seek(int64(winHeader.addRunDataLength+winHeader.addressesLength+winHeader.instructionsLength), io.SeekCurrent)
 		targetWindowPosition += winHeader.targetWindowLength
 		//fmt.Printf("Window processed: 0x%X / 0x%X\n", targetWindowPosition, newFileSize)
 		bar.SetCurrent(int64(targetWindowPosition))
@@ -390,7 +386,7 @@ func getDefaultCodeTable() [][]Code {
 	return entries
 }
 
-func parseHeader(file *filebuffer.Buffer) {
+func parseHeader(file *os.File) {
 	_, err := file.Seek(0x4, io.SeekStart)
 	check(err)
 	headerIndicator := readU8(file)
@@ -425,7 +421,7 @@ func parseHeader(file *filebuffer.Buffer) {
 	}
 }
 
-func decodeWindowHeader(file *filebuffer.Buffer) WindowHeader {
+func decodeWindowHeader(file *os.File) WindowHeader {
 	windowHeader := WindowHeader{}
 	windowHeader.indicator = readU8(file)
 	windowHeader.sourceLength = 0
@@ -456,7 +452,7 @@ func decodeWindowHeader(file *filebuffer.Buffer) WindowHeader {
 	return windowHeader
 }
 
-func readU8(file io.ReadSeeker) byte {
+func readU8(file *os.File) byte {
 	bytes := make([]byte, 1)
 	len, err := file.Read(bytes)
 	check(err)
@@ -467,7 +463,7 @@ func readU8(file io.ReadSeeker) byte {
 	return bytes[0]
 }
 
-func readU32(file io.ReadSeeker) uint32 {
+func readU32(file *os.File) uint32 {
 	bytes := make([]byte, 4)
 	len, err := file.Read(bytes)
 	check(err)
@@ -478,7 +474,7 @@ func readU32(file io.ReadSeeker) uint32 {
 	return binary.BigEndian.Uint32(bytes)
 }
 
-func read7BitEncodedInt(file io.ReadSeeker) int {
+func read7BitEncodedInt(file *os.File) int {
 	var num int = 0
 	bits := int(readU8(file))
 	num = (num << 7) + (bits & 0x7f)
