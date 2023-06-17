@@ -173,19 +173,30 @@ func patchWithXdelta(input io.ReadSeeker, outputPath string, patchPath string, v
 
 					distance := (targetWindowPosition + addRunDataIndex) - absAddr
 					if sourceData == output && size > distance {
-						// TODO: Find a faster way of doing this
 						// Slow copy that can handle overlap of reading and writing targets
 						// This functionality is usually used to create repeating byte sequences in the target
-						// It's slow because it reads and writes one byte at a time
-						buff := make([]byte, 1)
+						repeatLength := size - distance
+						totalSize := size
+						inputBytes := make([]byte, distance)
+						outputBytes := make([]byte, size)
 						sourceData.Seek(int64(absAddr), io.SeekStart)
+						sourceData.Read(inputBytes) // Read the bytes that we will be repeating
+						// Repeatedly iterate over inputBytes and write to outputBytes
+						i := 0
+						j := 0
 						for size > 0 {
+							if i == len(inputBytes) {
+								i = 0
+							}
+							outputBytes[j] = inputBytes[i]
 							size--
-							sourceData.Read(buff)
-							output.WriteAt(buff, int64(targetWindowPosition+addRunDataIndex))
-							addRunDataIndex++
-							absAddr++
+							i++
+							j++
 						}
+						sourceData.Seek(int64(repeatLength), io.SeekCurrent) // Skip repeated bytes we didn't end up reading
+						output.WriteAt(outputBytes, int64(targetWindowPosition+addRunDataIndex))
+						addRunDataIndex += totalSize
+						absAddr += totalSize
 					} else {
 						// No overlap, fast copy
 						buff := make([]byte, size)
