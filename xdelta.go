@@ -60,7 +60,7 @@ type AddressCache struct {
 	nearSize      int
 	sameSize      int
 	nextNearSlot  int
-	addressStream *os.File
+	addressStream io.ReadSeeker
 	near          []int
 	same          []int
 }
@@ -309,7 +309,7 @@ func getVCDAddressCache(nearSize int, sameSize int) AddressCache {
 	return AddressCache{nearSize: nearSize, sameSize: sameSize, near: near, same: same}
 }
 
-func resetCache(cache *AddressCache, addressStream *os.File) {
+func resetCache(cache *AddressCache, addressStream io.ReadSeeker) {
 	cache.nextNearSlot = 0
 	cache.addressStream = addressStream
 	for i := 0; i < len(cache.near); i++ {
@@ -386,16 +386,16 @@ func getDefaultCodeTable() [][]Code {
 	return entries
 }
 
-func parseHeader(file *os.File) {
-	_, err := file.Seek(0x4, io.SeekStart)
+func parseHeader(reader io.ReadSeeker) {
+	_, err := reader.Seek(0x4, io.SeekStart)
 	check(err)
-	headerIndicator := readU8(file)
+	headerIndicator := readU8(reader)
 
 	// VCD_DECOMPRESS
 	if headerIndicator&VCD_DECOMPRESS != 0 {
 		//has secondary decompressor, read its id
 		secondaryDecompressorId := make([]byte, 1)
-		_, err := file.Read(secondaryDecompressorId)
+		_, err := reader.Read(secondaryDecompressorId)
 		check(err)
 
 		if secondaryDecompressorId[0] != 0 {
@@ -405,7 +405,7 @@ func parseHeader(file *os.File) {
 
 	// VCD_CODETABLE
 	if headerIndicator&VCD_CODETABLE != 0 {
-		codeTableDataLength := read7BitEncodedInt(file)
+		codeTableDataLength := read7BitEncodedInt(reader)
 
 		if codeTableDataLength != 0 {
 			panic("Not implemented: custom code table")
@@ -415,38 +415,38 @@ func parseHeader(file *os.File) {
 	// VCD_APPHEADER
 	if headerIndicator&VCD_APPHEADER != 0 {
 		// ignore app header data
-		appDataLength := int64(read7BitEncodedInt(file))
-		_, err := file.Seek(appDataLength, io.SeekCurrent)
+		appDataLength := int64(read7BitEncodedInt(reader))
+		_, err := reader.Seek(appDataLength, io.SeekCurrent)
 		check(err)
 	}
 }
 
-func decodeWindowHeader(file *os.File) WindowHeader {
+func decodeWindowHeader(reader io.ReadSeeker) WindowHeader {
 	windowHeader := WindowHeader{}
-	windowHeader.indicator = readU8(file)
+	windowHeader.indicator = readU8(reader)
 	windowHeader.sourceLength = 0
 	windowHeader.sourcePosition = 0
 	windowHeader.hasAdler32 = false
 
 	if windowHeader.indicator&VCD_SOURCE != 0 || windowHeader.indicator&VCD_TARGET != 0 {
-		windowHeader.sourceLength = read7BitEncodedInt(file)
-		windowHeader.sourcePosition = read7BitEncodedInt(file)
+		windowHeader.sourceLength = read7BitEncodedInt(reader)
+		windowHeader.sourcePosition = read7BitEncodedInt(reader)
 	}
 
-	windowHeader.deltaLength = read7BitEncodedInt(file)
-	windowHeader.targetWindowLength = read7BitEncodedInt(file)
-	windowHeader.deltaIndicator = readU8(file) // secondary compression: 1=VCD_DATACOMP,2=VCD_INSTCOMP,4=VCD_ADDRCOMP
+	windowHeader.deltaLength = read7BitEncodedInt(reader)
+	windowHeader.targetWindowLength = read7BitEncodedInt(reader)
+	windowHeader.deltaIndicator = readU8(reader) // secondary compression: 1=VCD_DATACOMP,2=VCD_INSTCOMP,4=VCD_ADDRCOMP
 	if windowHeader.deltaIndicator != 0 {
 		panic(fmt.Sprintf("unimplemented windowHeader.deltaIndicator: %d\n", windowHeader.deltaIndicator))
 	}
 
-	windowHeader.addRunDataLength = read7BitEncodedInt(file)
-	windowHeader.instructionsLength = read7BitEncodedInt(file)
-	windowHeader.addressesLength = read7BitEncodedInt(file)
+	windowHeader.addRunDataLength = read7BitEncodedInt(reader)
+	windowHeader.instructionsLength = read7BitEncodedInt(reader)
+	windowHeader.addressesLength = read7BitEncodedInt(reader)
 
 	if (windowHeader.indicator & VCD_ADLER32) == VCD_ADLER32 {
 		windowHeader.hasAdler32 = true
-		windowHeader.adler32 = readU32(file)
+		windowHeader.adler32 = readU32(reader)
 	}
 
 	return windowHeader
