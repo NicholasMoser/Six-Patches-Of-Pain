@@ -38,7 +38,7 @@ var CurrentVersion = "data/current_version"
 var GitRepositoryFile = "data/git_repository"
 
 // DefaultGitRepository default git repository to download new releases from
-var GitRepository = "https://api.github.com/repos/NicholasMoser/SCON4-Releases/releases"
+var GitRepository = "https://api.github.com/repos/NicholasMoser/SCON4-Releases/releases/latest"
 
 // argGitRepository git repository given as argument to download new releases from
 var argGitRepository string
@@ -66,6 +66,14 @@ var LinuxExecutableName = "Six-Patches-Of-Pain"
 
 // ExecutableName the name of the executable
 var ExecutableName string
+
+type githubApiData struct {
+	Version string `json:"tag_name"`
+	Assets  []struct {
+		Name        string `json:"name"`
+		DownloadURL string `json:"browser_download_url"`
+	}
+}
 
 func main() {
 	version := "2.0.0"
@@ -270,17 +278,11 @@ func downloadNewVersion() string {
 	}
 	body, err := io.ReadAll(resp.Body)
 	check(err)
-	var f interface{}
-	err2 := json.Unmarshal(body, &f)
+	var data githubApiData
+	err2 := json.Unmarshal(body, &data)
 	check(err2)
-	releases := f.([]interface{})
-	if len(releases) == 0 {
-		fmt.Println("No releases found at " + repo)
-		fail()
-	}
-	latestRelease := releases[0].(map[string]interface{})
 	// Stop if the latest release has already been patched locally
-	latestVersion := latestRelease["name"].(string)
+	latestVersion := data.Version
 	if exists(CurrentVersion) {
 		currentVersion := readFile(CurrentVersion)
 		if currentVersion == latestVersion {
@@ -291,15 +293,11 @@ func downloadNewVersion() string {
 		}
 	}
 	// Download the patch
-	assets := latestRelease["assets"].([]interface{})
-	if len(assets) == 0 {
+	if len(data.Assets) == 0 {
 		fmt.Println("No assets found in latest release for " + repo)
 		fail()
-	} else if len(assets) > 1 {
-		fmt.Println("Too many assets found in latest release for " + repo)
-		fail()
 	}
-	downloadURL := assets[0].(map[string]interface{})["browser_download_url"].(string)
+	downloadURL := data.Assets[0].DownloadURL
 	fmt.Println("\nThere is a new version of SCON4 available: " + latestVersion)
 	fmt.Println("Downloading: " + latestVersion)
 	download(downloadURL, PatchFile)
