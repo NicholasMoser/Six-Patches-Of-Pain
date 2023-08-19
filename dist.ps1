@@ -1,4 +1,4 @@
-$VERSION = "1.2.0"
+$VERSION = "2.0.0"
 
 # Recreate dist directory
 Remove-Item -Force -Recurse -Path dist -ErrorAction Ignore
@@ -10,7 +10,7 @@ go generate
 garble build
 
 # Zip Windows binary
-tar.exe -acf "dist/Six-Patches-Of-Pain-$VERSION-Windows.zip" Six-Patches-Of-Pain.exe data/xdelta3.exe
+tar.exe -acf "dist/Six-Patches-Of-Pain-$VERSION-Windows.zip" Six-Patches-Of-Pain.exe
 
 # Generate Mac binary
 $Env:GOOS = "darwin"; $Env:GOARCH = "amd64"
