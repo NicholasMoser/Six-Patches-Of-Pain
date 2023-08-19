@@ -2,6 +2,7 @@
 package main
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
@@ -47,7 +48,13 @@ var argGitRepository string
 var argSpecificVersion bool
 
 // PatchFile the patch file to be downloaded
-var PatchFile = "data/patch"
+var PatchFile = "data/patch.xdelta"
+
+// PatchZip the patch zip to be downloaded
+var PatchZip = "data/patch.zip"
+
+// VanillaPatch the name of the vanilla xdelta patch in the PatchZip
+var VanillaPatch = "vanilla.xdelta"
 
 // GNT4ISOPath path of the GNT4 ISO if it's not in the current directory
 var GNT4ISOPath = "data/gnt4_iso_path"
@@ -297,11 +304,52 @@ func downloadNewVersion() string {
 		fmt.Println("No assets found in latest release for " + repo)
 		fail()
 	}
-	downloadURL := data.Assets[0].DownloadURL
-	fmt.Println("\nThere is a new version of SCON4 available: " + latestVersion)
-	fmt.Println("Downloading: " + latestVersion)
-	download(downloadURL, PatchFile)
-	return latestVersion
+	for i := 0; i < len(data.Assets); i++ {
+		asset := data.Assets[i]
+		name := asset.Name
+		if name == "patch.xdelta" {
+			downloadURL := data.Assets[0].DownloadURL
+			fmt.Println("\nThere is a new version of SCON4 available: " + latestVersion)
+			fmt.Println("Downloading: " + latestVersion)
+			download(downloadURL, PatchFile)
+			return latestVersion
+		} else if name == "patches.zip" {
+			downloadURL := data.Assets[0].DownloadURL
+			fmt.Println("\nThere is a new version of SCON4 available: " + latestVersion)
+			fmt.Println("Downloading: " + latestVersion)
+			download(downloadURL, PatchZip)
+			unzipPatch()
+			os.Remove(PatchZip)
+			return latestVersion
+		}
+	}
+	fmt.Println("Unable to find either patch.xdelta or patches.zip")
+	fail()
+	return ""
+}
+
+func unzipPatch() {
+	zipListing, err := zip.OpenReader(PatchZip)
+	check(err)
+	defer zipListing.Close()
+
+	for _, f := range zipListing.File {
+		if f.Name != VanillaPatch {
+			continue
+		}
+
+		// Found vanilla.xdelta
+		dstFile, err := os.OpenFile(PatchFile, os.O_RDWR|os.O_CREATE, 0644)
+		check(err)
+		rc, err := f.Open()
+		check(err)
+		_, err = io.Copy(dstFile, rc)
+		check(err)
+		rc.Close()
+		return
+	}
+	fmt.Println("Unable to find vanilla.xdelta")
+	fail()
 }
 
 // Specify which available version to download
