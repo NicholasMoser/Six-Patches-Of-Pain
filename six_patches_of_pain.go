@@ -39,7 +39,7 @@ var CurrentVersion = "data/current_version"
 var GitRepositoryFile = "data/git_repository"
 
 // DefaultGitRepository default git repository to download new releases from
-var GitRepository = "https://api.github.com/repos/NicholasMoser/SCON4-Releases/releases/latest"
+var GitRepository = "https://api.github.com/repos/NicholasMoser/SCON4-Releases/releases"
 
 // argGitRepository git repository given as argument to download new releases from
 var argGitRepository string
@@ -74,12 +74,14 @@ var LinuxExecutableName = "Six-Patches-Of-Pain"
 // ExecutableName the name of the executable
 var ExecutableName string
 
-type githubApiData struct {
-	Version string `json:"tag_name"`
-	Assets  []struct {
-		Name        string `json:"name"`
-		DownloadURL string `json:"browser_download_url"`
-	}
+type Asset struct {
+	Name        string `json:"name"`
+	DownloadURL string `json:"browser_download_url"`
+}
+
+type Tag struct {
+	Version string  `json:"tag_name"`
+	Assets  []Asset `json:"assets"`
 }
 
 func main() {
@@ -285,11 +287,13 @@ func downloadNewVersion() string {
 	}
 	body, err := io.ReadAll(resp.Body)
 	check(err)
-	var data githubApiData
-	err2 := json.Unmarshal(body, &data)
+	var tags []Tag
+	err2 := json.Unmarshal(body, &tags)
 	check(err2)
 	// Stop if the latest release has already been patched locally
-	latestVersion := data.Version
+	latestTag := tags[0]
+	latestVersion := latestTag.Version
+	fmt.Println(latestTag)
 	if exists(CurrentVersion) {
 		currentVersion := readFile(CurrentVersion)
 		if currentVersion == latestVersion {
@@ -300,21 +304,21 @@ func downloadNewVersion() string {
 		}
 	}
 	// Download the patch
-	if len(data.Assets) == 0 {
+	if len(latestTag.Assets) == 0 {
 		fmt.Println("No assets found in latest release for " + repo)
 		fail()
 	}
-	for i := 0; i < len(data.Assets); i++ {
-		asset := data.Assets[i]
+	for i := 0; i < len(latestTag.Assets); i++ {
+		asset := latestTag.Assets[i]
 		name := asset.Name
 		if name == "patch.xdelta" {
-			downloadURL := data.Assets[0].DownloadURL
+			downloadURL := latestTag.Assets[0].DownloadURL
 			fmt.Println("\nThere is a new version of SCON4 available: " + latestVersion)
 			fmt.Println("Downloading: " + latestVersion)
 			download(downloadURL, PatchFile)
 			return latestVersion
 		} else if name == "patches.zip" {
-			downloadURL := data.Assets[0].DownloadURL
+			downloadURL := latestTag.Assets[0].DownloadURL
 			fmt.Println("\nThere is a new version of SCON4 available: " + latestVersion)
 			fmt.Println("Downloading: " + latestVersion)
 			download(downloadURL, PatchZip)
