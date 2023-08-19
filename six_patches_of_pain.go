@@ -2,6 +2,7 @@
 package main
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
@@ -47,7 +48,13 @@ var argGitRepository string
 var argSpecificVersion bool
 
 // PatchFile the patch file to be downloaded
-var PatchFile = "data/patch"
+var PatchFile = "data/patch.xdelta"
+
+// PatchZip the patch zip to be downloaded
+var PatchZip = "data/patch.zip"
+
+// VanillaPatch the name of the vanilla xdelta patch in the PatchZip
+var VanillaPatch = "vanilla.xdelta"
 
 // GNT4ISOPath path of the GNT4 ISO if it's not in the current directory
 var GNT4ISOPath = "data/gnt4_iso_path"
@@ -66,6 +73,16 @@ var LinuxExecutableName = "Six-Patches-Of-Pain"
 
 // ExecutableName the name of the executable
 var ExecutableName string
+
+type Asset struct {
+	Name        string `json:"name"`
+	DownloadURL string `json:"browser_download_url"`
+}
+
+type Tag struct {
+	Version string  `json:"tag_name"`
+	Assets  []Asset `json:"assets"`
+}
 
 func main() {
 	version := "2.0.0"
@@ -270,17 +287,12 @@ func downloadNewVersion() string {
 	}
 	body, err := io.ReadAll(resp.Body)
 	check(err)
-	var f interface{}
-	err2 := json.Unmarshal(body, &f)
+	var tags []Tag
+	err2 := json.Unmarshal(body, &tags)
 	check(err2)
-	releases := f.([]interface{})
-	if len(releases) == 0 {
-		fmt.Println("No releases found at " + repo)
-		fail()
-	}
-	latestRelease := releases[0].(map[string]interface{})
 	// Stop if the latest release has already been patched locally
-	latestVersion := latestRelease["name"].(string)
+	latestTag := tags[0]
+	latestVersion := latestTag.Version
 	if exists(CurrentVersion) {
 		currentVersion := readFile(CurrentVersion)
 		if currentVersion == latestVersion {
@@ -291,19 +303,56 @@ func downloadNewVersion() string {
 		}
 	}
 	// Download the patch
-	assets := latestRelease["assets"].([]interface{})
-	if len(assets) == 0 {
+	if len(latestTag.Assets) == 0 {
 		fmt.Println("No assets found in latest release for " + repo)
 		fail()
-	} else if len(assets) > 1 {
-		fmt.Println("Too many assets found in latest release for " + repo)
-		fail()
 	}
-	downloadURL := assets[0].(map[string]interface{})["browser_download_url"].(string)
-	fmt.Println("\nThere is a new version of SCON4 available: " + latestVersion)
-	fmt.Println("Downloading: " + latestVersion)
-	download(downloadURL, PatchFile)
-	return latestVersion
+	for i := 0; i < len(latestTag.Assets); i++ {
+		asset := latestTag.Assets[i]
+		name := asset.Name
+		if name == "patch.xdelta" {
+			downloadURL := latestTag.Assets[0].DownloadURL
+			fmt.Println("\nThere is a new version of SCON4 available: " + latestVersion)
+			fmt.Println("Downloading: " + latestVersion)
+			download(downloadURL, PatchFile)
+			return latestVersion
+		} else if name == "patches.zip" {
+			downloadURL := latestTag.Assets[0].DownloadURL
+			fmt.Println("\nThere is a new version of SCON4 available: " + latestVersion)
+			fmt.Println("Downloading: " + latestVersion)
+			download(downloadURL, PatchZip)
+			unzipPatch()
+			os.Remove(PatchZip)
+			return latestVersion
+		}
+	}
+	fmt.Println("Unable to find either patch.xdelta or patches.zip")
+	fail()
+	return ""
+}
+
+func unzipPatch() {
+	zipListing, err := zip.OpenReader(PatchZip)
+	check(err)
+	defer zipListing.Close()
+
+	for _, f := range zipListing.File {
+		if f.Name != VanillaPatch {
+			continue
+		}
+
+		// Found vanilla.xdelta
+		dstFile, err := os.OpenFile(PatchFile, os.O_RDWR|os.O_CREATE, 0644)
+		check(err)
+		rc, err := f.Open()
+		check(err)
+		_, err = io.Copy(dstFile, rc)
+		check(err)
+		rc.Close()
+		return
+	}
+	fmt.Println("Unable to find vanilla.xdelta")
+	fail()
 }
 
 // Specify which available version to download
@@ -318,40 +367,65 @@ func downloadSpecificVersion() string {
 	}
 	body, err := io.ReadAll(resp.Body)
 	check(err)
-	var f interface{}
-	err2 := json.Unmarshal(body, &f)
+	var tags []Tag
+	err2 := json.Unmarshal(body, &tags)
 	check(err2)
-	releases := f.([]interface{})
-	if len(releases) == 0 {
+	if len(tags) == 0 {
 		fmt.Println("No releases found at " + repo)
 		fail()
 	}
-	for i := 0; i < len(releases); i++ {
-		fmt.Println(i, ": ", releases[i].(map[string]interface{})["name"].(string))
+	for i := 0; i < len(tags); i++ {
+		fmt.Println(i, ": ", tags[i].Version)
 	}
 	fmt.Print("Enter the number of the wished release: ")
 	var input int
 	fmt.Scanln(&input)
-	if input >= len(releases) {
-		input = len(releases) - 1
+	if input >= len(tags) {
+		input = len(tags) - 1
 	} else if input < 0 {
 		input = 0
 	}
-	specificRelease := releases[input].(map[string]interface{})
-	specificVersion := specificRelease["name"].(string)
+	specificRelease := tags[input]
+	specificVersion := specificRelease.Version
 	// Download the patch
-	assets := specificRelease["assets"].([]interface{})
+	assets := specificRelease.Assets
 	if len(assets) == 0 {
 		fmt.Println("No assets found in latest release for " + repo)
 		fail()
-	} else if len(assets) > 1 {
-		fmt.Println("Too many assets found in latest release for " + repo)
-		fail()
 	}
-	downloadURL := assets[0].(map[string]interface{})["browser_download_url"].(string)
-	fmt.Println("Downloading: " + specificVersion)
-	download(downloadURL, PatchFile)
-	return specificVersion
+	// First for passivity with older releases, prefer uncompressed_patch.xdelta as that
+	// is that is now the only patch time supported by the native xdelta impl
+	for i := 0; i < len(specificRelease.Assets); i++ {
+		asset := specificRelease.Assets[i]
+		name := asset.Name
+		if name == "uncompressed_patch.xdelta" {
+			downloadURL := specificRelease.Assets[i].DownloadURL
+			fmt.Println("Downloading: " + specificVersion)
+			download(downloadURL, PatchFile)
+			return specificVersion
+		}
+	}
+	// Now check for other patch file types
+	for i := 0; i < len(specificRelease.Assets); i++ {
+		asset := specificRelease.Assets[i]
+		name := asset.Name
+		if name == "patch.xdelta" {
+			downloadURL := specificRelease.Assets[i].DownloadURL
+			fmt.Println("Downloading: " + specificVersion)
+			download(downloadURL, PatchFile)
+			return specificVersion
+		} else if name == "patches.zip" {
+			downloadURL := specificRelease.Assets[i].DownloadURL
+			fmt.Println("Downloading: " + specificVersion)
+			download(downloadURL, PatchZip)
+			unzipPatch()
+			os.Remove(PatchZip)
+			return specificVersion
+		}
+	}
+	fmt.Println("Unable to find uncompressed_patch.xdelta, patch.xdelta, or patches.zip")
+	fail()
+	return ""
 }
 
 // Patches the given GNT4 ISO to the output SCON4 ISO path using the downloaded patch.
